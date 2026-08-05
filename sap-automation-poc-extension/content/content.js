@@ -1,8 +1,8 @@
 // Injected on-demand into the target tab via chrome.scripting.executeScript.
-// Depends on lib/selector-utils.js being injected first (exposes window.ToscaSelectorUtils).
+// Depends on lib/selector-utils.js being injected first (exposes window.SapAutomationSelectorUtils).
 (function () {
-  if (window.__toscaPocContentLoaded) return;
-  window.__toscaPocContentLoaded = true;
+  if (window.__sapAutomationPocContentLoaded) return;
+  window.__sapAutomationPocContentLoaded = true;
 
   let overlayEl = null;
   let labelEl = null;
@@ -11,13 +11,13 @@
   function ensureOverlay() {
     if (!overlayEl) {
       overlayEl = document.createElement('div');
-      overlayEl.className = 'tosca-poc-highlight-overlay';
+      overlayEl.className = 'sap-automation-poc-highlight-overlay';
       overlayEl.style.display = 'none';
       document.documentElement.appendChild(overlayEl);
     }
     if (!labelEl) {
       labelEl = document.createElement('div');
-      labelEl.className = 'tosca-poc-highlight-label';
+      labelEl.className = 'sap-automation-poc-highlight-label';
       labelEl.style.display = 'none';
       document.documentElement.appendChild(labelEl);
     }
@@ -26,7 +26,7 @@
   function ensureRunOverlay() {
     if (!runOverlayEl) {
       runOverlayEl = document.createElement('div');
-      runOverlayEl.className = 'tosca-poc-run-overlay';
+      runOverlayEl.className = 'sap-automation-poc-run-overlay';
       runOverlayEl.style.display = 'none';
       document.documentElement.appendChild(runOverlayEl);
     }
@@ -129,9 +129,9 @@
       !el ||
       el === document.documentElement ||
       el === document.body ||
-      el.classList.contains('tosca-poc-highlight-overlay') ||
-      el.classList.contains('tosca-poc-highlight-label') ||
-      el.classList.contains('tosca-poc-run-overlay')
+      el.classList.contains('sap-automation-poc-highlight-overlay') ||
+      el.classList.contains('sap-automation-poc-highlight-label') ||
+      el.classList.contains('sap-automation-poc-run-overlay')
     );
   }
 
@@ -149,7 +149,7 @@
     if (isIgnorableElement(el)) return;
     e.preventDefault();
     e.stopPropagation();
-    const selectors = ToscaSelectorUtils.generateSelectors(el);
+    const selectors = SapAutomationSelectorUtils.generateSelectors(el);
     const entry = {
       name: describeElement(el),
       selectors,
@@ -198,7 +198,7 @@
       seen.add(el);
       if (el.disabled) return;
       if (!isVisible(el)) return;
-      const selectors = ToscaSelectorUtils.generateSelectors(el);
+      const selectors = SapAutomationSelectorUtils.generateSelectors(el);
       results.push({
         name: describeElement(el),
         selectors,
@@ -211,7 +211,7 @@
   }
 
   function highlightBySelectors(selectors) {
-    const el = ToscaSelectorUtils.findElement(selectors || {});
+    const el = SapAutomationSelectorUtils.findElement(selectors || {});
     if (el) {
       ensureOverlay();
       positionOverlay(el, overlayEl, labelEl);
@@ -249,7 +249,7 @@
   }
 
   function emitRecordedStep(el, action, value) {
-    const selectors = ToscaSelectorUtils.generateSelectors(el);
+    const selectors = SapAutomationSelectorUtils.generateSelectors(el);
     const objectEntry = {
       name: describeElement(el),
       selectors,
@@ -328,19 +328,19 @@
     ensureRunOverlay();
 
     // Retry finding element (handles late-loading SPA content)
-    let el = ToscaSelectorUtils.findElement(selectors || {});
+    let el = SapAutomationSelectorUtils.findElement(selectors || {});
     let attempts = 0;
     const maxAttempts = 20; // up to 4 seconds
     while (!el && attempts < maxAttempts) {
       await sleep(200);
-      el = ToscaSelectorUtils.findElement(selectors || {});
+      el = SapAutomationSelectorUtils.findElement(selectors || {});
       attempts++;
     }
 
     if (!el) {
       return {
         status: 'fail',
-        message: `Không tìm thấy element (selector: ${ToscaSelectorUtils.pickBestSelector(selectors || {})})`,
+        message: `Không tìm thấy element (selector: ${SapAutomationSelectorUtils.pickBestSelector(selectors || {})})`,
       };
     }
     // Scroll through all parent containers that might be clipping the element
@@ -498,7 +498,7 @@
         executeStep(message.step, message.selectors).then(sendResponse);
         return true; // keep the message channel open for the async response
       case 'BG_CHECK_ELEMENT':
-        sendResponse({ found: !!ToscaSelectorUtils.findElement(message.selectors || {}) });
+        sendResponse({ found: !!SapAutomationSelectorUtils.findElement(message.selectors || {}) });
         return;
       case 'BG_CHECK_PAGE_READY':
         sendResponse({ ready: document.readyState === 'complete' });

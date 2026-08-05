@@ -257,5 +257,5 @@
     return null;
   }
 
-  global.ToscaSelectorUtils = { generateSelectors, pickBestSelector, findElement, buildCssPath, buildXPath };
+  global.SapAutomationSelectorUtils = { generateSelectors, pickBestSelector, findElement, buildCssPath, buildXPath };
 })(window);

@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Tosca PoC - Web Test Automation",
+  "name": "SAP Automation PoC - Web Test Automation",
   "version": "0.1.0",
-  "description": "PoC scriptless test automation (Object Identification, Record & Playback, Test Execution & Report) lay cam hung tu Tricentis Tosca.",
+  "description": "PoC scriptless test automation (Object Identification, Record & Playback, Test Execution & Report) lay cam hung tu SAP Automation PoC.",
   "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Mo Tosca PoC"
+    "default_title": "Mo SAP Automation PoC"
   },
   "side_panel": {
     "default_path": "sidepanel/sidepanel.html"

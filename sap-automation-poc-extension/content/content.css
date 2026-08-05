@@ -1,4 +1,4 @@
-.tosca-poc-highlight-overlay {
+.sap-automation-poc-highlight-overlay {
   position: fixed;
   z-index: 2147483647;
   pointer-events: none;
@@ -8,7 +8,7 @@
   box-sizing: border-box;
 }
 
-.tosca-poc-highlight-label {
+.sap-automation-poc-highlight-label {
   position: fixed;
   z-index: 2147483647;
   pointer-events: none;
@@ -23,7 +23,7 @@
   text-overflow: ellipsis;
 }
 
-.tosca-poc-run-overlay {
+.sap-automation-poc-run-overlay {
   position: fixed;
   z-index: 2147483647;
   pointer-events: none;

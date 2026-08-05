@@ -6,11 +6,11 @@
 //   WA_*  Web App (external, via long-lived Port) <-> background
 
 const STORAGE_KEYS = {
-  OBJECTS: 'tosca_objects',
-  TEST_CASES: 'tosca_test_cases',
-  TEST_SUITES: 'tosca_test_suites',
-  REPORTS: 'tosca_reports',
-  VARIABLES: 'tosca_variables',
+  OBJECTS: 'sap_automation_objects',
+  TEST_CASES: 'sap_automation_test_cases',
+  TEST_SUITES: 'sap_automation_test_suites',
+  REPORTS: 'sap_automation_reports',
+  VARIABLES: 'sap_automation_variables',
 };
 
 const ALLOWED_WEBAPP_ORIGIN = 'http://localhost:8787';
@@ -58,7 +58,7 @@ async function ensureContentScriptInjected(tabId) {
     });
     return true;
   } catch (e) {
-    console.error('Tosca PoC: cannot inject content script', e);
+    console.error('SAP Automation PoC: cannot inject content script', e);
     return false;
   }
 }
