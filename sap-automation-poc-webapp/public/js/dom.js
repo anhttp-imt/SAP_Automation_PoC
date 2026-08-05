@@ -24,11 +24,8 @@ const tabCacheFns = {
       stepValueInput: $('step-value-input'),
       stepVariableNameInput: $('step-variable-name-input'),
       btnAddStep: $('btn-add-step'),
-      btnExportTc: $('btn-export-tc'),
-      btnImportTc: $('btn-import-tc'),
       btnLoadTcFromServer: $('btn-load-tc-from-server'),
       btnSaveTcToServer: $('btn-save-tc-to-server'),
-      importTcFileInput: $('import-tc-file-input'),
     });
   },
   suite() {
@@ -40,11 +37,8 @@ const tabCacheFns = {
       suiteEmpty: $('suite-empty'),
       suiteAddTestcaseSelect: $('suite-add-testcase-select'),
       btnSuiteAddTestcase: $('btn-suite-add-testcase'),
-      btnExportSuite: $('btn-export-suite'),
-      btnImportSuite: $('btn-import-suite'),
       btnLoadSuiteFromServer: $('btn-load-suite-from-server'),
       btnSaveSuiteToServer: $('btn-save-suite-to-server'),
-      importSuiteFileInput: $('import-suite-file-input'),
     });
   },
   run() {

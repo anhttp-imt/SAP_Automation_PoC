@@ -189,74 +189,6 @@
       renderScanAllList();
     });
 
-    // Export objects as JSON
-    els.btnExportObjects.addEventListener('click', () => {
-      const data = {
-        version: '1.0',
-        type: 'objects',
-        exportedAt: new Date().toISOString(),
-        objects: state.objects,
-      };
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `imt-s4hana-objects-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    // Import objects from JSON file
-    els.btnImportObjects.addEventListener('click', () => {
-      els.importObjectsFileInput.click();
-    });
-
-    els.importObjectsFileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-
-          if (!data.version || !data.objects || !Array.isArray(data.objects)) {
-            alert('Invalid objects export file.');
-            return;
-          }
-
-          const mode = prompt(
-            `Import ${data.objects.length} Objects\n\n` +
-            `Enter mode:\n` +
-            `  merge  - Add to existing objects (default)\n` +
-            `  replace - Replace ALL existing objects`,
-            'merge'
-          );
-
-          if (mode === null) return;
-
-          const isReplace = mode === 'replace';
-
-          if (isReplace && !confirm('This will REPLACE all existing objects. Continue?')) return;
-
-          // Update state
-          state.objects = isReplace ? [...data.objects] : [...state.objects, ...data.objects];
-
-          // Persist to extension storage
-          await send('SP_SAVE_ALL_OBJECTS', { objects: state.objects });
-
-          renderObjects();
-          alert(`Successfully imported ${data.objects.length} objects!`);
-        } catch (err) {
-          alert(`Failed to parse file: ${err.message}`);
-        }
-
-        els.importObjectsFileInput.value = '';
-      };
-      reader.readAsText(file);
-    });
-
     // Save objects to Web App server
     els.btnSaveToServer.addEventListener('click', async () => {
       try {
@@ -331,11 +263,8 @@
       scanAllList: $('scan-all-list'),
       scanAllEmpty: $('scan-all-empty'),
       btnScanAllAdd: $('btn-scan-all-add'),
-      btnExportObjects: $('btn-export-objects'),
-      btnImportObjects: $('btn-import-objects'),
       btnLoadFromServer: $('btn-load-from-server'),
       btnSaveToServer: $('btn-save-to-server'),
-      importObjectsFileInput: $('import-objects-file-input'),
       btnDeleteAllObjects: $('btn-delete-all-objects'),
     });
 
