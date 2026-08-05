@@ -91,7 +91,19 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Connect to database (MongoDB or JSON fallback) on startup
-db.connect();
+db.connect().catch((e) => {
+  console.error('[MongoDB] Failed to connect:', e.message);
+  console.log('[MongoDB] Server will still run but DB operations will fail.');
+});
+
+// Handle MongoDB disconnect gracefully
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]:', err.message);
+});
 
 server.listen(PORT, () => {
   console.log(`SAP Automation PoC Web App: http://localhost:${PORT}`);

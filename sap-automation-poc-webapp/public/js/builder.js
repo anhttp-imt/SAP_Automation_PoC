@@ -128,7 +128,7 @@ export function persistActiveTestCase() {
   const tc = getTestCase(state.activeTestCaseId);
   if (!tc) return;
   sendToExtension('WA_SAVE_TEST_CASE', { testCase: tc });
-  api.saveTestCasesToServer();
+  // Don't auto-save to server - only save when user clicks 💾 Save button
   renderTestCaseSelectors();
 }
 

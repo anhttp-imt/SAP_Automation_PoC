@@ -257,6 +257,39 @@
       reader.readAsText(file);
     });
 
+    // Save objects to Web App server
+    els.btnSaveToServer.addEventListener('click', async () => {
+      try {
+        const res = await fetch('http://localhost:8787/api/objects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ objects: state.objects }),
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(`HTTP ${res.status}: ${errorData.error || 'Unknown error'}`);
+        }
+        alert(`Saved ${state.objects.length} objects to server.`);
+      } catch (e) {
+        alert(`Failed to save objects to server: ${e.message}\n\nMake sure the Web App is running on http://localhost:8787`);
+      }
+    });
+
+    // Load objects from Web App server
+    els.btnLoadFromServer.addEventListener('click', async () => {
+      try {
+        const res = await fetch('http://localhost:8787/api/objects');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const objects = await res.json();
+        state.objects = objects || [];
+        await send('SP_SAVE_ALL_OBJECTS', { objects: state.objects });
+        renderObjects();
+        alert(`Loaded ${state.objects.length} objects from server.`);
+      } catch (e) {
+        alert(`Failed to load objects from server: ${e.message}\n\nMake sure the Web App is running on http://localhost:8787`);
+      }
+    });
+
     // Delete all objects
     els.btnDeleteAllObjects.addEventListener('click', async () => {
       if (!confirm('Delete all objects?\n\nThis will permanently delete all objects in the Object Repository.')) return;
@@ -264,6 +297,13 @@
       state.objects = [];
       await send('SP_SAVE_ALL_OBJECTS', { objects: [] });
       renderObjects();
+
+      // Also delete from server
+      try {
+        await fetch('http://localhost:8787/api/objects', { method: 'DELETE' });
+      } catch (e) {
+        console.warn('[Sidepanel] Failed to delete objects from server:', e.message);
+      }
     });
   }
 
@@ -293,6 +333,8 @@
       btnScanAllAdd: $('btn-scan-all-add'),
       btnExportObjects: $('btn-export-objects'),
       btnImportObjects: $('btn-import-objects'),
+      btnLoadFromServer: $('btn-load-from-server'),
+      btnSaveToServer: $('btn-save-to-server'),
       importObjectsFileInput: $('import-objects-file-input'),
       btnDeleteAllObjects: $('btn-delete-all-objects'),
     });

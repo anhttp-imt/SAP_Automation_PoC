@@ -65,7 +65,7 @@ export function wireBuilderEvents() {
     state.testCases.push(tc);
     state.activeTestCaseId = tc.id;
     sendToExtension('WA_SAVE_TEST_CASE', { testCase: tc });
-    api.saveTestCasesToServer();
+    // Don't auto-save to server - only save when user clicks 💾 Save button
     renderTestCaseSelectors();
     renderSteps();
   });
@@ -82,7 +82,7 @@ export function wireBuilderEvents() {
     sendToExtension('WA_DELETE_TEST_CASE', { testCaseId: tc.id });
     state.testCases = state.testCases.filter((t) => t.id !== tc.id);
     state.activeTestCaseId = null;
-    api.saveTestCasesToServer();
+    // Don't auto-save to server - only save when user clicks 💾 Save button
     renderTestCaseSelectors();
     renderSteps();
   });
@@ -129,6 +129,29 @@ export function wireBuilderEvents() {
   els.stepActionSelect.addEventListener('change', () => {
     const isExtract = els.stepActionSelect.value === 'extract';
     els.stepVariableNameInput.style.display = isExtract ? '' : 'none';
+  });
+
+  // Save test cases to server
+  els.btnSaveTcToServer.addEventListener('click', async () => {
+    try {
+      await api.saveTestCasesToServer();
+      alert(`Saved ${state.testCases.length} test cases to server.`);
+    } catch (e) {
+      alert(`Failed to save test cases to server: ${e.message}`);
+    }
+  });
+
+  // Load test cases from server
+  els.btnLoadTcFromServer.addEventListener('click', async () => {
+    try {
+      await api.loadTestCasesFromServer();
+      if (connected) sendToExtension('WA_SAVE_ALL_TEST_CASES', { testCases: state.testCases });
+      renderTestCaseSelectors();
+      renderSteps();
+      alert(`Loaded ${state.testCases.length} test cases from server.`);
+    } catch (e) {
+      alert(`Failed to load test cases from server: ${e.message}`);
+    }
   });
 
   // Export current test case as JSON
@@ -184,7 +207,7 @@ export function wireBuilderEvents() {
         state.testCases.push(newTc);
         state.activeTestCaseId = newTc.id;
         sendToExtension('WA_SAVE_TEST_CASE', { testCase: newTc });
-        api.saveTestCasesToServer();
+        // Don't auto-save to server - only save when user clicks 💾 Save button
         renderTestCaseSelectors();
         renderSteps();
 
@@ -209,7 +232,7 @@ export function wireSuiteEvents() {
     state.testSuites.push(suite);
     state.activeSuiteId = suite.id;
     sendToExtension('WA_SAVE_TEST_SUITE', { suite });
-    api.saveTestSuitesToServer();
+    // Don't auto-save to server - only save when user clicks 💾 Save button
     renderSuiteSelectors();
     renderSuiteItems();
   });
@@ -226,7 +249,7 @@ export function wireSuiteEvents() {
     sendToExtension('WA_DELETE_TEST_SUITE', { suiteId: suite.id });
     state.testSuites = state.testSuites.filter((s) => s.id !== suite.id);
     state.activeSuiteId = null;
-    api.saveTestSuitesToServer();
+    // Don't auto-save to server - only save when user clicks 💾 Save button
     renderSuiteSelectors();
     renderSuiteItems();
   });
@@ -239,7 +262,30 @@ export function wireSuiteEvents() {
     suite.testCaseIds.push(tcId);
     renderSuiteItems();
     persistActiveSuite();
-    api.saveTestSuitesToServer();
+    // Don't auto-save to server - only save when user clicks 💾 Save button
+  });
+
+  // Save test suites to server
+  els.btnSaveSuiteToServer.addEventListener('click', async () => {
+    try {
+      await api.saveTestSuitesToServer();
+      alert(`Saved ${state.testSuites.length} test suites to server.`);
+    } catch (e) {
+      alert(`Failed to save test suites to server: ${e.message}`);
+    }
+  });
+
+  // Load test suites from server
+  els.btnLoadSuiteFromServer.addEventListener('click', async () => {
+    try {
+      await api.loadTestSuitesFromServer();
+      if (connected) sendToExtension('WA_SAVE_ALL_TEST_SUITES', { testSuites: state.testSuites });
+      renderSuiteSelectors();
+      renderSuiteItems();
+      alert(`Loaded ${state.testSuites.length} test suites from server.`);
+    } catch (e) {
+      alert(`Failed to load test suites from server: ${e.message}`);
+    }
   });
 
   // Export current suite as JSON
@@ -295,7 +341,7 @@ export function wireSuiteEvents() {
         state.testSuites.push(newSuite);
         state.activeSuiteId = newSuite.id;
         sendToExtension('WA_SAVE_TEST_SUITE', { suite: newSuite });
-        api.saveTestSuitesToServer();
+        // Don't auto-save to server - only save when user clicks 💾 Save button
         renderSuiteSelectors();
         renderSuiteItems();
 

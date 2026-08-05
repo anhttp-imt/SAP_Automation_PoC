@@ -109,7 +109,7 @@ export function persistActiveSuite() {
   const suite = getSuite(state.activeSuiteId);
   if (!suite) return;
   sendToExtension('WA_SAVE_TEST_SUITE', { suite });
-  api.saveTestSuitesToServer();
+  // Don't auto-save to server - only save when user clicks 💾 Save button
   renderSuiteSelectors();
 }
 

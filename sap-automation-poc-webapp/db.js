@@ -40,16 +40,26 @@ async function deleteAllReports() {
 
 // --- Objects (Data Elements) ---
 async function loadObjects() {
-  return await db.collection(OBJECTS_COLLECTION).find({}).sort({ createdAt: -1 }).toArray();
+  return await db.collection(OBJECTS_COLLECTION).find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
 }
 
 async function saveAllObjects(objects) {
-  await db.collection(OBJECTS_COLLECTION).deleteMany({});
-  if (objects.length > 0) {
-    for (const obj of objects) {
-      obj.updatedAt = new Date();
-      await db.collection(OBJECTS_COLLECTION).insertOne(obj);
-    }
+  const ids = objects.map((o) => o.id);
+  // Delete objects no longer in the list
+  if (ids.length > 0) {
+    await db.collection(OBJECTS_COLLECTION).deleteMany({ id: { $nin: ids } });
+  } else {
+    await db.collection(OBJECTS_COLLECTION).deleteMany({});
+  }
+  // Upsert remaining objects (remove _id to avoid immutable field error)
+  for (const obj of objects) {
+    obj.updatedAt = new Date();
+    const { _id, ...objWithoutId } = obj;
+    await db.collection(OBJECTS_COLLECTION).replaceOne(
+      { id: obj.id },
+      objWithoutId,
+      { upsert: true }
+    );
   }
 }
 
@@ -59,16 +69,26 @@ async function deleteAllObjects() {
 
 // --- Test Cases ---
 async function loadTestCases() {
-  return await db.collection(TESTCASES_COLLECTION).find({}).sort({ createdAt: -1 }).toArray();
+  return await db.collection(TESTCASES_COLLECTION).find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
 }
 
 async function saveAllTestCases(testCases) {
-  await db.collection(TESTCASES_COLLECTION).deleteMany({});
-  if (testCases.length > 0) {
-    for (const tc of testCases) {
-      tc.updatedAt = new Date();
-      await db.collection(TESTCASES_COLLECTION).insertOne(tc);
-    }
+  const ids = testCases.map((t) => t.id);
+  // Delete test cases no longer in the list
+  if (ids.length > 0) {
+    await db.collection(TESTCASES_COLLECTION).deleteMany({ id: { $nin: ids } });
+  } else {
+    await db.collection(TESTCASES_COLLECTION).deleteMany({});
+  }
+  // Upsert remaining test cases (remove _id to avoid immutable field error)
+  for (const tc of testCases) {
+    tc.updatedAt = new Date();
+    const { _id, ...tcWithoutId } = tc;
+    await db.collection(TESTCASES_COLLECTION).replaceOne(
+      { id: tc.id },
+      tcWithoutId,
+      { upsert: true }
+    );
   }
 }
 
@@ -78,16 +98,26 @@ async function deleteAllTestCases() {
 
 // --- Test Suites ---
 async function loadTestSuites() {
-  return await db.collection(TESTSUITES_COLLECTION).find({}).sort({ createdAt: -1 }).toArray();
+  return await db.collection(TESTSUITES_COLLECTION).find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
 }
 
 async function saveAllTestSuites(testSuites) {
-  await db.collection(TESTSUITES_COLLECTION).deleteMany({});
-  if (testSuites.length > 0) {
-    for (const suite of testSuites) {
-      suite.updatedAt = new Date();
-      await db.collection(TESTSUITES_COLLECTION).insertOne(suite);
-    }
+  const ids = testSuites.map((s) => s.id);
+  // Delete test suites no longer in the list
+  if (ids.length > 0) {
+    await db.collection(TESTSUITES_COLLECTION).deleteMany({ id: { $nin: ids } });
+  } else {
+    await db.collection(TESTSUITES_COLLECTION).deleteMany({});
+  }
+  // Upsert remaining test suites (remove _id to avoid immutable field error)
+  for (const suite of testSuites) {
+    suite.updatedAt = new Date();
+    const { _id, ...suiteWithoutId } = suite;
+    await db.collection(TESTSUITES_COLLECTION).replaceOne(
+      { id: suite.id },
+      suiteWithoutId,
+      { upsert: true }
+    );
   }
 }
 

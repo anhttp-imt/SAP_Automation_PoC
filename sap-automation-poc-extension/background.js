@@ -659,6 +659,21 @@ chrome.runtime.onConnectExternal.addListener((port) => {
           await chrome.storage.local.clear();
           break;
         }
+        case 'WA_SAVE_ALL_OBJECTS': {
+          await setAll(STORAGE_KEYS.OBJECTS, message.objects || []);
+          notifyWebAppsDataChanged();
+          break;
+        }
+        case 'WA_SAVE_ALL_TEST_CASES': {
+          await setAll(STORAGE_KEYS.TEST_CASES, message.testCases || []);
+          notifyWebAppsDataChanged();
+          break;
+        }
+        case 'WA_SAVE_ALL_TEST_SUITES': {
+          await setAll(STORAGE_KEYS.TEST_SUITES, message.testSuites || []);
+          notifyWebAppsDataChanged();
+          break;
+        }
         default:
           break;
       }

@@ -59,10 +59,7 @@ function handlePortMessage(message) {
       if (els.runModeSelect && els.runModeSelect.value === 'suite') {
         renderSuitePreview();
       }
-      // Save data received from extension to server
-      api.saveObjectsToServer();
-      api.saveTestCasesToServer();
-      api.saveTestSuitesToServer();
+      // Don't auto-save to server - only save when user clicks 💾 Save button
       // Reports are loaded from server API, not from extension
       loadReportsFromServer();
       break;
@@ -70,8 +67,7 @@ function handlePortMessage(message) {
       if (!state.objects.some((o) => o.id === message.entry.id)) state.objects.push(message.entry);
       renderStepObjectOptions();
       renderSteps();
-      // Save updated objects to server
-      api.saveObjectsToServer();
+      // Don't auto-save to server - only save when user clicks 💾 Save button
       break;
     case 'WA_EVT_STEP_ADDED': {
       let tc = getTestCase(state.activeTestCaseId);
@@ -84,8 +80,7 @@ function handlePortMessage(message) {
       tc.steps.push(message.step);
       renderSteps();
       persistActiveTestCase();
-      // Save updated test cases to server
-      api.saveTestCasesToServer();
+      // Don't auto-save to server - only save when user clicks 💾 Save button
       break;
     }
     case 'WA_EVT_RUN_STARTED':
