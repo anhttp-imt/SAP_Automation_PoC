@@ -267,7 +267,9 @@ async function init() {
   initTabs({
     builder: {
       wireFn: wireBuilderEvents,
-      refreshFn: () => {
+      refreshFn: async () => {
+        await api.loadTestCasesFromServer();
+        await api.loadObjectsFromServer();
         renderStepObjectOptions();
         renderTestCaseSelectors();
         renderSteps();
@@ -275,14 +277,18 @@ async function init() {
     },
     suite: {
       wireFn: wireSuiteEvents,
-      refreshFn: () => {
+      refreshFn: async () => {
+        await api.loadTestSuitesFromServer();
+        await api.loadTestCasesFromServer();
         renderSuiteSelectors();
         renderSuiteItems();
       },
     },
     run: {
       wireFn: wireRunEvents,
-      refreshFn: () => {
+      refreshFn: async () => {
+        await api.loadTestCasesFromServer();
+        await api.loadTestSuitesFromServer();
         renderTestCaseSelectors();
         renderSuiteSelectors();
         renderVariables();
@@ -294,7 +300,8 @@ async function init() {
     },
     report: {
       wireFn: wireReportEvents,
-      refreshFn: () => {
+      refreshFn: async () => {
+        await api.loadReportsFromServer();
         renderReports();
       },
     },

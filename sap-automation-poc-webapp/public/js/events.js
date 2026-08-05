@@ -137,10 +137,15 @@ export function wireBuilderEvents() {
     if (action === 'extract') step.variableName = variableName || 'extractedValue';
 
     tc.steps.push(step);
+    // Ensure pageUrlPattern is set from current target tab
+    if (!tc.pageUrlPattern) {
+      tc.pageUrlPattern = getTargetTabUrl();
+    }
     els.stepValueInput.value = '';
     els.stepVariableNameInput.value = '';
     renderSteps();
-    persistActiveTestCase();
+    // Update dropdowns only — save to DB when clicking Save button
+    renderTestCaseSelectors();
   });
 
   // Show/hide variable name input based on action

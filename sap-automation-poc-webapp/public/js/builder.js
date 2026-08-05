@@ -4,6 +4,7 @@ import { state, getTestCase, getObject, escapeHtml, stepSummary, uid, getTestCas
 import { els } from './dom.js';
 import { sendToExtension, getTargetTabUrl } from './connection.js';
 import { openStepEditModal } from './modal.js';
+import { renderRunSteps } from './run.js';
 import * as api from './api.js';
 
 // ---------------- Step List Rendering ----------------
@@ -140,6 +141,27 @@ export async function persistActiveTestCase() {
     console.error('[Builder] Failed to auto-save test case to DB:', e);
   }
   renderTestCaseSelectors();
+  if (els.runTestcaseSelect) {
+    const targetUrl = getTargetTabUrl();
+    const filteredTcs = getTestCasesByUrl(targetUrl);
+    const prevValue = els.runTestcaseSelect.value;
+    els.runTestcaseSelect.innerHTML = '';
+    if (filteredTcs.length === 0) {
+      const opt = document.createElement('option');
+      opt.textContent = targetUrl ? '(No Test Case for this tab)' : '(No Test Case)';
+      opt.value = '';
+      els.runTestcaseSelect.appendChild(opt);
+    } else {
+      filteredTcs.forEach((tc) => {
+        const opt = document.createElement('option');
+        opt.value = tc.id;
+        opt.textContent = `${tc.name} (${tc.steps.length} step)`;
+        els.runTestcaseSelect.appendChild(opt);
+      });
+    }
+    if (prevValue && filteredTcs.some((t) => t.id === prevValue)) els.runTestcaseSelect.value = prevValue;
+    renderRunSteps();
+  }
 }
 
 export function moveStep(idx, dir) {
@@ -150,7 +172,7 @@ export function moveStep(idx, dir) {
   const [item] = tc.steps.splice(idx, 1);
   tc.steps.splice(newIdx, 0, item);
   renderSteps();
-  persistActiveTestCase();
+  renderTestCaseSelectors();
 }
 
 export function deleteStep(idx) {
@@ -158,7 +180,7 @@ export function deleteStep(idx) {
   if (!tc) return;
   tc.steps.splice(idx, 1);
   renderSteps();
-  persistActiveTestCase();
+  renderTestCaseSelectors();
 }
 
 // ---------------- Drag and Drop ----------------
@@ -216,5 +238,5 @@ function handleDrop(e) {
   tc.steps.splice(adjustedInsertIndex, 0, item);
 
   renderSteps();
-  persistActiveTestCase();
+  renderTestCaseSelectors();
 }

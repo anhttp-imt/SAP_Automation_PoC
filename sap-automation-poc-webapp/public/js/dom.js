@@ -150,8 +150,13 @@ export function initTabs(config = {}) {
 
       const tabConfig = config[tabName] || {};
 
-      // Load tab if not already loaded
+      // Load tab if not already loaded (one-time: inject HTML, cache elements, wire events)
       await loadTab(tabName, tabConfig.wireFn, tabConfig.refreshFn);
+
+      // Always refresh data on every tab click (so Run/Report see latest from DB)
+      if (tabConfig.refreshFn) {
+        await tabConfig.refreshFn();
+      }
 
       // Show the panel
       const panel = $(`tab-${tabName}`);
