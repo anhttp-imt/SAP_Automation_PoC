@@ -277,7 +277,7 @@
   }
 
   function parseKeySequence(str) {
-    // Parse {Enter}{Tab}F5{F5} into ['Enter', 'Tab', 'F5', 'F5']
+    // Parse {Enter}{Tab}F5{Ctrl+A}{Ctrl+C} into ['Enter', 'Tab', 'F5', 'Ctrl+A', 'Ctrl+C']
     const keys = [];
     const regex = /\{([^}]+)\}|(.)/g;
     let match;
@@ -285,6 +285,22 @@
       keys.push(match[1] || match[2]);
     }
     return keys;
+  }
+
+  function dispatchCtrlKey(el, key) {
+    // Dispatch Ctrl+key combination to an element
+    const targets = [el, document, window].filter(Boolean);
+    for (const target of targets) {
+      // Press Ctrl down
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Control', code: 'ControlLeft', bubbles: true, ctrlKey: true }));
+      // Press the key with Ctrl held
+      target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ctrlKey: true }));
+      target.dispatchEvent(new KeyboardEvent('keypress', { key, bubbles: true, ctrlKey: true }));
+      // Release the key
+      target.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true, ctrlKey: true }));
+      // Release Ctrl
+      target.dispatchEvent(new KeyboardEvent('keyup', { key: 'Control', code: 'ControlLeft', bubbles: true }));
+    }
   }
 
   function setNativeValue(el, value) {
@@ -362,7 +378,12 @@
         case 'input': {
           let inputValue = step.value ?? '';
           if (inputValue.endsWith('{Enter}')) inputValue = inputValue.slice(0, -7);
+          // Strip {Ctrl+A} prefix if present (auto-clear is handled below)
+          if (inputValue.startsWith('{Ctrl+A}')) inputValue = inputValue.slice(7);
           el.focus();
+          // Clear existing value first
+          setNativeValue(el, '');
+          await sleep(50);
           setNativeValue(el, inputValue);
           // Always dispatch Enter to commit value in SAP UI
           el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));

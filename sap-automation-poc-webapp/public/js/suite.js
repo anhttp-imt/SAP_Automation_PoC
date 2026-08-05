@@ -53,7 +53,6 @@ export function renderSuiteSelectors() {
   }
   if (state.activeSuiteId) els.suiteSelect.value = state.activeSuiteId;
   if (els.btnDeleteSuite) els.btnDeleteSuite.disabled = !state.activeSuiteId;
-  if (els.btnExportSuite) els.btnExportSuite.disabled = !state.activeSuiteId;
 
   // Test case selector for adding to suite
   els.suiteAddTestcaseSelect.innerHTML = '';
