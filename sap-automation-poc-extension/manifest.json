@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Tosca PoC - Web Test Automation",
+  "version": "0.1.0",
+  "description": "PoC scriptless test automation (Object Identification, Record & Playback, Test Execution & Report) lay cam hung tu Tricentis Tosca.",
+  "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Mo Tosca PoC"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "externally_connectable": {
+    "matches": ["http://localhost:8787/*"]
+  }
+}

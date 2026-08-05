@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Tosca PoC</title>
+<link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Tosca PoC</h1>
+    <span class="subtitle">Object Identification (Scan)</span>
+  </header>
+
+  <main>
+    <div class="ext-id-row">
+      <span class="hint">Extension ID (paste into Web App to connect):</span>
+      <div class="ext-id-copy">
+        <code id="ext-id"></code>
+        <button id="btn-copy-id" class="btn btn-ghost">Copy</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button id="btn-scan-toggle" class="btn btn-primary">Start Scan</button>
+      <button id="btn-scan-all" class="btn">Scan All</button>
+    </div>
+    <div class="toolbar toolbar-secondary">
+      <button id="btn-export-objects" class="btn btn-icon" title="Export objects as JSON">📥 Export</button>
+      <button id="btn-import-objects" class="btn btn-icon" title="Import objects from JSON">📤 Import</button>
+      <div style="flex-grow:1"></div>
+      <button id="btn-delete-all-objects" class="btn btn-danger btn-icon" title="Delete all objects">🗑 Delete All</button>
+      <input type="file" id="import-objects-file-input" accept=".json" style="display:none" />
+    </div>
+    <p class="hint">Enable Scan then hover/click elements on the open page to capture them into the Object Repository. Or use Scan All to list every interactable element at once and pick which ones to keep.</p>
+
+    <ul id="object-list" class="item-list"></ul>
+    <p id="object-empty" class="empty-hint">No Object</p>
+  </main>
+
+  <div id="scan-all-panel" class="scan-all-panel hidden">
+    <div class="scan-all-header">
+      <strong>Scan All Results</strong>
+      <button id="btn-scan-all-close" class="btn btn-ghost" title="Close">✕</button>
+    </div>
+    <input id="scan-all-filter" type="text" class="scan-all-filter" placeholder="Filter by name/tag/text..." />
+    <label class="scan-all-select-all">
+      <input type="checkbox" id="scan-all-select-all-cb" />
+      Select All (<span id="scan-all-count">0</span>)
+    </label>
+    <ul id="scan-all-list" class="item-list scan-all-list"></ul>
+    <p id="scan-all-empty" class="empty-hint">No elements found</p>
+    <div class="scan-all-actions">
+      <button id="btn-scan-all-add" class="btn btn-primary" disabled>Add Selected</button>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

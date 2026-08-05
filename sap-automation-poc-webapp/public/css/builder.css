@@ -1,0 +1,6 @@
+/* Builder Tab Components */
+
+.add-step-form { display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px dashed var(--border); padding-top: 10px; }
+.add-step-form select { flex: 1 1 100px; }
+.add-step-form input { flex: 2 1 140px; }
+.add-step-form button { flex: 0 0 auto; }

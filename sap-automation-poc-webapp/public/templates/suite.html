@@ -1,0 +1,20 @@
+<section id="tab-suite" class="tab-panel">
+  <div class="toolbar">
+    <select id="suite-select"></select>
+    <button id="btn-new-suite" class="btn">+ New Suite</button>
+    <button id="btn-delete-suite" class="btn btn-ghost" disabled>Delete Suite</button>
+  </div>
+  <div class="toolbar">
+    <button id="btn-export-suite" class="btn" disabled title="Export this suite as JSON">⬇ Export Suite</button>
+    <button id="btn-import-suite" class="btn" title="Import suite from JSON">⬆ Import Suite</button>
+    <input type="file" id="import-suite-file-input" accept=".json" style="display:none" />
+  </div>
+  <p class="hint">Combine multiple test cases (from different features) into a single sequential workflow. If a test case fails, the suite stops immediately and does not run the remaining test cases.</p>
+  <ol id="suite-item-list" class="item-list"></ol>
+  <p id="suite-empty" class="empty-hint">Suite has no test cases yet.</p>
+
+  <div class="add-step-form">
+    <select id="suite-add-testcase-select"></select>
+    <button id="btn-suite-add-testcase" class="btn">+ Add to Suite</button>
+  </div>
+</section>

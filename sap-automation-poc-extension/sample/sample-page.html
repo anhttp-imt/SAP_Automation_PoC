@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<title>Sample App - Login demo</title>
+<style>
+  body { font: 14px/1.5 -apple-system, sans-serif; max-width: 420px; margin: 60px auto; }
+  label { display: block; margin-top: 12px; font-weight: 600; }
+  input, select { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; }
+  button { margin-top: 16px; padding: 8px 16px; }
+  #result { margin-top: 16px; padding: 10px; border-radius: 4px; display: none; }
+  #result.ok { display: block; background: #e8f5e9; color: #2e7d32; }
+  #result.err { display: block; background: #ffebee; color: #c62828; }
+</style>
+</head>
+<body>
+  <h2>Sample Login Form</h2>
+  <p>Trang demo để test Tosca PoC extension: scan object, record thao tác, verify kết quả.</p>
+
+  <label for="username">Username</label>
+  <input id="username" name="username" type="text" placeholder="Nhập username" />
+
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" placeholder="Nhập password" />
+
+  <label for="role">Role</label>
+  <select id="role" name="role">
+    <option value="user">User</option>
+    <option value="admin">Admin</option>
+  </select>
+
+  <button id="login-btn" type="button">Đăng nhập</button>
+
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('login-btn').addEventListener('click', function () {
+      var username = document.getElementById('username').value;
+      var result = document.getElementById('result');
+      if (username.trim() === '') {
+        result.textContent = 'Vui lòng nhập username';
+        result.className = 'err';
+      } else {
+        result.textContent = 'Xin chào, ' + username + '!';
+        result.className = 'ok';
+      }
+    });
+  </script>
+</body>
+</html>

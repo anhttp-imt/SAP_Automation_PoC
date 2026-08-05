@@ -1,0 +1,34 @@
+<section id="tab-builder" class="tab-panel active">
+  <div class="toolbar">
+    <select id="testcase-select"></select>
+    <button id="btn-new-testcase" class="btn">+ New Test Case</button>
+  </div>
+  <div class="toolbar">
+    <button id="btn-record-toggle" class="btn btn-danger" disabled>Start Record</button>
+    <button id="btn-delete-testcase" class="btn btn-ghost" disabled>Delete Test Case</button>
+    <div style="flex-grow:1"></div>
+    <button id="btn-export-tc" class="btn" disabled title="Export this test case as JSON">⬇ Export TC</button>
+    <button id="btn-import-tc" class="btn" title="Import test case from JSON">⬆ Import TC</button>
+    <input type="file" id="import-tc-file-input" accept=".json" style="display:none" />
+  </div>
+  <p class="hint">Record: all clicks/inputs on the Target Tab will automatically be added as steps. Or add steps manually below. Objects are taken from the Object Repository scanned in the extension.</p>
+  <ol id="step-list" class="item-list"></ol>
+  <p id="step-empty" class="empty-hint">No steps yet.</p>
+
+  <div class="add-step-form">
+    <select id="step-object-select"></select>
+    <select id="step-action-select">
+      <option value="click">Click</option>
+      <option value="input">Input</option>
+      <option value="select">Select</option>
+      <option value="extract">Extract</option>
+      <option value="verify">Verify Text</option>
+      <option value="wait">Wait</option>
+      <option value="openurl">Open URL</option>
+      <option value="sendkey">Send Key</option>
+    </select>
+    <input id="step-value-input" type="text" placeholder="Value / expected text / ms" />
+    <input id="step-variable-name-input" type="text" placeholder="Variable name (for Extract)" style="display:none;" />
+    <button id="btn-add-step" class="btn">+ Add Step</button>
+  </div>
+</section>

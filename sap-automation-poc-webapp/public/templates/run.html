@@ -1,0 +1,28 @@
+<section id="tab-run" class="tab-panel">
+  <div class="toolbar">
+    <select id="run-mode-select">
+      <option value="testcase">Run: Single Test Case</option>
+      <option value="suite">Run: Suite</option>
+    </select>
+  </div>
+  <div class="toolbar" id="run-mode-testcase">
+    <select id="run-testcase-select"></select>
+  </div>
+  <div class="toolbar" id="run-mode-suite" style="display:none;">
+    <select id="run-suite-select"></select>
+  </div>
+  <div class="toolbar">
+    <button id="btn-run-testcase" class="btn btn-primary">▶ Run</button>
+    <button id="btn-run-suite" class="btn btn-primary">▶ Run Suite</button>
+    <button id="btn-cancel-run" class="btn btn-danger" disabled>⏹ Cancel</button>
+  </div>
+
+  <!-- Variables display panel -->
+  <div id="variables-panel" class="variables-panel" style="display:none;">
+    <h3>Variables</h3>
+    <div id="variables-list" class="variables-list"></div>
+  </div>
+
+  <div id="run-step-list" class="item-list"></div>
+  <p id="run-empty" class="empty-hint">Select a test case or suite then click Run.</p>
+</section>

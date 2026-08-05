@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SAP Automation PoC — Web App</title>
+<link rel="stylesheet" href="css/app.css?v=2026073105" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>SAP Automation PoC</h1>
+    <span class="subtitle">Test Builder · Suite · Record &amp; Playback · Run &amp; Report</span>
+  </header>
+
+  <section class="connect-bar">
+    <input id="ext-id-input" type="text" placeholder="Paste Extension ID from Side Panel..." />
+    <button id="btn-connect" class="btn btn-primary">Connect</button>
+    <span id="connect-status" class="status-chip status-fail">Not connected</span>
+  </section>
+
+  <section class="target-bar">
+    <label for="target-tab-select">Target Tab:</label>
+    <select id="target-tab-select"></select>
+    <button id="btn-refresh-tabs" class="btn btn-ghost">⟳ Refresh</button>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="builder">Test Builder</button>
+    <button class="tab-btn" data-tab="suite">Suite</button>
+    <button class="tab-btn" data-tab="run">Run</button>
+    <button class="tab-btn" data-tab="report">Report</button>
+  </nav>
+
+  <main>
+    <!-- Tab panels are lazy-loaded from templates/ -->
+  </main>
+
+  <!-- Step Edit Modal -->
+  <div id="step-edit-overlay" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Edit Step</h3>
+        <button id="btn-modal-close" class="btn-ghost" title="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Object</label>
+          <select id="edit-step-object-select"></select>
+        </div>
+        <div class="form-row">
+          <label>Action</label>
+          <select id="edit-step-action-select">
+            <option value="click">Click</option>
+            <option value="input">Input</option>
+            <option value="select">Select</option>
+            <option value="extract">Extract</option>
+            <option value="verify">Verify Text</option>
+            <option value="wait">Wait</option>
+            <option value="openurl">Open URL</option>
+            <option value="sendkey">Send Key</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Value / expected text / ms</label>
+          <input id="edit-step-value-input" type="text" placeholder="Value" />
+        </div>
+        <div class="form-row" id="edit-variable-name-row" style="display:none;">
+          <label>Variable name</label>
+          <input id="edit-step-variable-name-input" type="text" placeholder="e.g.: prNumber, poNumber" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-modal-cancel" class="btn">Discard</button>
+        <button id="btn-modal-save" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screenshot Preview Modal -->
+  <div id="screenshot-overlay" class="modal-overlay">
+    <div class="modal-dialog screenshot-dialog">
+      <div class="modal-header">
+        <h3>Screenshot Preview</h3>
+        <button id="btn-screenshot-close" class="btn-ghost" title="Close">✕</button>
+      </div>
+      <div class="modal-body screenshot-body">
+        <img id="screenshot-preview-img" src="" alt="Screenshot" />
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

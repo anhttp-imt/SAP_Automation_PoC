@@ -1,0 +1,44 @@
+/* Layout Styles */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.app-header { padding: 16px 16px 8px; border-bottom: 1px solid var(--border); }
+.app-header h1 { font-size: 20px; margin: 0; }
+.app-header .subtitle { font-size: 12px; color: var(--muted); }
+
+.connect-bar, .target-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.connect-bar input { flex: 1; min-width: 200px; }
+.target-bar select { flex: 1; min-width: 0; }
+.target-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.tabs { display: flex; border-bottom: 1px solid var(--border); }
+.tab-btn {
+  flex: 1;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+main { padding: 14px 16px 32px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }

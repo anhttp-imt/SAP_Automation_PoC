@@ -1,0 +1,25 @@
+/* CSS Custom Properties */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #e0e0e0;
+  --primary: #ff5722;
+  --primary-fg: #ffffff;
+  --danger: #d32f2f;
+  --pass: #2e7d32;
+  --fail: #c62828;
+  --running: #1565c0;
+  --chip-bg: #f2f2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --fg: #f0f0f0;
+    --muted: #aaa;
+    --border: #3a3a3a;
+    --chip-bg: #2a2a2a;
+  }
+}

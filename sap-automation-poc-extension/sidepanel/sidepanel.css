@@ -1,0 +1,177 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #e0e0e0;
+  --primary: #ff5722;
+  --primary-fg: #ffffff;
+  --danger: #d32f2f;
+  --chip-bg: #f2f2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --fg: #f0f0f0;
+    --muted: #aaa;
+    --border: #3a3a3a;
+    --chip-bg: #2a2a2a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 13px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app-header {
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.app-header h1 { font-size: 16px; margin: 0; }
+.app-header .subtitle { font-size: 11px; color: var(--muted); }
+
+main { padding: 10px 12px 24px; }
+
+.ext-id-row {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+.ext-id-copy { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.ext-id-copy code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--chip-bg);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.toolbar-secondary {
+  margin-bottom: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.btn-icon {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.hint { color: var(--muted); font-size: 11px; margin: 4px 0 10px; }
+.empty-hint { color: var(--muted); font-size: 12px; text-align: center; padding: 16px 0; display: none; }
+.empty-hint.visible { display: block; }
+
+.btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--chip-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(0.95); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-ghost { background: none; }
+
+.item-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.item-card-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.item-title { font-weight: 600; word-break: break-word; }
+.item-sub { font-size: 11px; color: var(--muted); word-break: break-all; }
+.item-actions { display: flex; gap: 4px; }
+.item-actions button {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+.item-actions button:hover { color: var(--danger); }
+
+.hidden { display: none !important; }
+
+.scan-all-panel {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 10;
+  overflow-y: auto;
+  padding: 10px 12px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.scan-all-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.scan-all-header strong { font-size: 14px; }
+.scan-all-filter {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.scan-all-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.scan-all-item .item-card-row { justify-content: flex-start; align-items: flex-start; }
+.scan-all-item .scan-all-cb { margin-top: 2px; flex-shrink: 0; }
+.scan-all-item .item-title { flex: 1; text-align: left; }
+.scan-all-item:hover { border-color: var(--primary); }
+.scan-all-actions {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.scan-all-actions .btn { width: 100%; }
