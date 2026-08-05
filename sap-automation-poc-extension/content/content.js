@@ -361,8 +361,19 @@
         }
         case 'input': {
           let inputValue = step.value ?? '';
+          let shouldClearFirst = false;
+          if (inputValue.startsWith('{Clear}')) {
+            shouldClearFirst = true;
+            inputValue = inputValue.slice(7);
+          }
           if (inputValue.endsWith('{Enter}')) inputValue = inputValue.slice(0, -7);
           el.focus();
+          // Clear input first if {Clear} prefix is present
+          if (shouldClearFirst) {
+            setNativeValue(el, '');
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
           setNativeValue(el, inputValue);
           // Always dispatch Enter to commit value in SAP UI
           el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
