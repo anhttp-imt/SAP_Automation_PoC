@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const DB_NAME = process.env.DB_NAME || 'sap-automation-poc';
-const COLLECTION = process.env.COLLECTION_NAME || 'imt-poc-reports';
+const REPORT_COLLECTION = 'imt-poc-reports';
 const OBJECTS_COLLECTION = 'imt-poc-objects';
 const TESTCASES_COLLECTION = 'imt-poc-testcases';
 const TESTSUITES_COLLECTION = 'imt-poc-testsuites';
@@ -21,21 +21,21 @@ async function connect() {
 
 // --- Public API ---
 async function loadReports() {
-  return await db.collection(COLLECTION).find({}).sort({ createdAt: -1 }).toArray();
+  return await db.collection(REPORT_COLLECTION).find({}).sort({ createdAt: -1 }).toArray();
 }
 
 async function saveReport(report) {
   report.createdAt = new Date();
   report.updatedAt = new Date();
-  await db.collection(COLLECTION).insertOne(report);
+  await db.collection(REPORT_COLLECTION).insertOne(report);
 }
 
 async function deleteReport(id) {
-  await db.collection(COLLECTION).deleteOne({ id });
+  await db.collection(REPORT_COLLECTION).deleteOne({ id });
 }
 
 async function deleteAllReports() {
-  await db.collection(COLLECTION).deleteMany({});
+  await db.collection(REPORT_COLLECTION).deleteMany({});
 }
 
 // --- Objects (Data Elements) ---
@@ -132,11 +132,43 @@ async function close() {
   }
 }
 
+// --- Unique pageUrlPatterns from objects + test cases ---
+// Queries pageUrlPattern, parentUrl, and url fields to cover legacy data
+async function getUniquePageUrlPatterns() {
+  const fallbackAgg = [
+    { $project: {
+      pattern: {
+        $ifNull: [
+          { $ifNull: ['$pageUrlPattern', '$parentUrl'] },
+          '$url'
+        ]
+      }
+    }},
+    { $match: { pattern: { $ne: null, $ne: '' } } },
+    { $group: { _id: null, pattern: { $addToSet: '$pattern' } } },
+  ];
+
+  const [objResult, tcResult] = await Promise.all([
+    db.collection(OBJECTS_COLLECTION).aggregate(fallbackAgg).toArray(),
+    db.collection(TESTCASES_COLLECTION).aggregate(fallbackAgg).toArray(),
+  ]);
+
+  const all = new Set();
+  for (const r of [...objResult, ...tcResult]) {
+    for (const p of (r.pattern || [])) {
+      const trimmed = typeof p === 'string' ? p.trim() : String(p);
+      if (trimmed) all.add(trimmed);
+    }
+  }
+  return [...all];
+}
+
 module.exports = {
   connect,
   loadReports, saveReport, deleteReport, deleteAllReports,
   loadObjects, saveAllObjects, deleteAllObjects,
   loadTestCases, saveAllTestCases, deleteAllTestCases,
   loadTestSuites, saveAllTestSuites, deleteAllTestSuites,
+  getUniquePageUrlPatterns,
   close
 };

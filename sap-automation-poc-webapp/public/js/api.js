@@ -39,7 +39,12 @@ export async function clearReportsFromServer() {
 export async function loadObjectsFromServer() {
   try {
     const res = await fetch('/api/objects');
-    state.objects = await res.json();
+    const objects = await res.json();
+    // Normalize: ensure pageUrlPattern field exists
+    state.objects = objects.map((obj) => ({
+      ...obj,
+      pageUrlPattern: obj.pageUrlPattern || obj.parentUrl || obj.url || '',
+    }));
   } catch (e) {
     console.error('[API] Failed to load objects from server:', e);
   }
@@ -52,7 +57,6 @@ export async function saveObjectsToServer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ objects: state.objects }),
     });
-    console.log('[API] Objects saved to server');
   } catch (e) {
     console.error('[API] Failed to save objects to server:', e);
   }
@@ -72,7 +76,12 @@ export async function clearObjectsFromServer() {
 export async function loadTestCasesFromServer() {
   try {
     const res = await fetch('/api/testcases');
-    state.testCases = await res.json();
+    const testCases = await res.json();
+    // Normalize: ensure pageUrlPattern field exists
+    state.testCases = testCases.map((tc) => ({
+      ...tc,
+      pageUrlPattern: tc.pageUrlPattern || tc.parentUrl || tc.url || '',
+    }));
   } catch (e) {
     console.error('[API] Failed to load test cases from server:', e);
   }
@@ -85,7 +94,6 @@ export async function saveTestCasesToServer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ testCases: state.testCases }),
     });
-    console.log('[API] Test cases saved to server');
   } catch (e) {
     console.error('[API] Failed to save test cases to server:', e);
   }
@@ -118,7 +126,6 @@ export async function saveTestSuitesToServer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ testSuites: state.testSuites }),
     });
-    console.log('[API] Test suites saved to server');
   } catch (e) {
     console.error('[API] Failed to save test suites to server:', e);
   }

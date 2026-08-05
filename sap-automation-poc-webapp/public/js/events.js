@@ -2,7 +2,7 @@
 
 import { state, getTestCase, getSuite, uid } from './state.js';
 import { els } from './dom.js';
-import { connected, sendToExtension, connectToExtension, getTargetTabId } from './connection.js';
+import { connected, sendToExtension, connectToExtension, getTargetTabId, getTargetTabUrl, isTargetTabFromDb } from './connection.js';
 import { renderSteps, renderTestCaseSelectors, renderStepObjectOptions, persistActiveTestCase } from './builder.js';
 import { closeStepEditModal, saveStepEdit } from './modal.js';
 import { renderSuiteSelectors, renderSuiteItems, persistActiveSuite } from './suite.js';
@@ -52,20 +52,37 @@ export function wireSharedEvents() {
     const isExtract = els.editStepActionSelect.value === 'extract';
     els.editVariableNameRow.style.display = isExtract ? '' : 'none';
   });
+
+  // Re-render all views when target tab changes (filter by tab URL)
+  els.targetTabSelect.addEventListener('change', () => {
+    renderStepObjectOptions();
+    renderTestCaseSelectors();
+    renderSteps();
+    renderSuiteSelectors();
+    renderSuiteItems();
+    renderRunSteps();
+    renderReports();
+  });
 }
 
 // ==================== Builder Tab Events ====================
 
 export function wireBuilderEvents() {
   // Test Case
-  els.btnNewTestcase.addEventListener('click', () => {
+  els.btnNewTestcase.addEventListener('click', async () => {
     const name = prompt('TC Name:', `Test case ${state.testCases.length + 1}`);
     if (!name) return;
-    const tc = { id: uid('tc'), name, steps: [], createdAt: Date.now() };
+    const tc = {
+      id: uid('tc'),
+      name,
+      steps: [],
+      createdAt: Date.now(),
+      pageUrlPattern: getTargetTabUrl(),
+    };
     state.testCases.push(tc);
     state.activeTestCaseId = tc.id;
-    sendToExtension('WA_SAVE_TEST_CASE', { testCase: tc });
-    // Don't auto-save to server - only save when user clicks 💾 Save button
+    // Auto-save to DB
+    try { await api.saveTestCasesToServer(); } catch (e) { console.error(e); }
     renderTestCaseSelectors();
     renderSteps();
   });
@@ -76,13 +93,13 @@ export function wireBuilderEvents() {
     renderSteps();
   });
 
-  els.btnDeleteTestcase.addEventListener('click', () => {
+  els.btnDeleteTestcase.addEventListener('click', async () => {
     const tc = getTestCase(state.activeTestCaseId);
     if (!tc || !confirm(`Delete Test Case "${tc.name}"?`)) return;
-    sendToExtension('WA_DELETE_TEST_CASE', { testCaseId: tc.id });
     state.testCases = state.testCases.filter((t) => t.id !== tc.id);
     state.activeTestCaseId = null;
-    // Don't auto-save to server - only save when user clicks 💾 Save button
+    // Auto-save to DB
+    try { await api.saveTestCasesToServer(); } catch (e) { console.error(e); }
     renderTestCaseSelectors();
     renderSteps();
   });
@@ -90,6 +107,7 @@ export function wireBuilderEvents() {
   // Recording
   els.btnRecordToggle.addEventListener('click', () => {
     if (!connected) { alert('Please connect to extension!'); return; }
+    if (isTargetTabFromDb()) { alert('Please select a live Chrome Tab to record (URL Patterns are for filtering only).'); return; }
     const tabId = getTargetTabId();
     if (!tabId) { alert('Choose Target Tab'); return; }
     if (!state.activeTestCaseId) return;
@@ -158,14 +176,14 @@ export function wireBuilderEvents() {
 // ==================== Suite Tab Events ====================
 
 export function wireSuiteEvents() {
-  els.btnNewSuite.addEventListener('click', () => {
+  els.btnNewSuite.addEventListener('click', async () => {
     const name = prompt('New suite name:', `Suite ${state.testSuites.length + 1}`);
     if (!name) return;
     const suite = { id: uid('suite'), name, testCaseIds: [], createdAt: Date.now() };
     state.testSuites.push(suite);
     state.activeSuiteId = suite.id;
-    sendToExtension('WA_SAVE_TEST_SUITE', { suite });
-    // Don't auto-save to server - only save when user clicks 💾 Save button
+    // Auto-save to DB
+    try { await api.saveTestSuitesToServer(); } catch (e) { console.error(e); }
     renderSuiteSelectors();
     renderSuiteItems();
   });
@@ -176,26 +194,25 @@ export function wireSuiteEvents() {
     renderSuiteItems();
   });
 
-  els.btnDeleteSuite.addEventListener('click', () => {
+  els.btnDeleteSuite.addEventListener('click', async () => {
     const suite = getSuite(state.activeSuiteId);
     if (!suite || !confirm(`Delete suite "${suite.name}"?`)) return;
-    sendToExtension('WA_DELETE_TEST_SUITE', { suiteId: suite.id });
     state.testSuites = state.testSuites.filter((s) => s.id !== suite.id);
     state.activeSuiteId = null;
-    // Don't auto-save to server - only save when user clicks 💾 Save button
+    // Auto-save to DB
+    try { await api.saveTestSuitesToServer(); } catch (e) { console.error(e); }
     renderSuiteSelectors();
     renderSuiteItems();
   });
 
-  els.btnSuiteAddTestcase.addEventListener('click', () => {
+  els.btnSuiteAddTestcase.addEventListener('click', async () => {
     const suite = getSuite(state.activeSuiteId);
     if (!suite) { alert('Please select or create suite!'); return; }
     const tcId = els.suiteAddTestcaseSelect.value;
     if (!tcId) { alert('Please create testcase in Test Builder!'); return; }
     suite.testCaseIds.push(tcId);
     renderSuiteItems();
-    persistActiveSuite();
-    // Don't auto-save to server - only save when user clicks 💾 Save button
+    await persistActiveSuite();
   });
 
   // Save test suites to server
@@ -249,6 +266,22 @@ export function wireRunEvents() {
   // Run buttons
   els.btnRunTestcase.addEventListener('click', () => {
     if (!connected) { alert('Please connect to extension!'); return; }
+
+    // If DB URL pattern selected → navigate to that URL in current tab
+    if (isTargetTabFromDb()) {
+      const runUrl = getTargetTabUrl();
+      if (!runUrl) { alert('No URL available for this tab.'); return; }
+      const tc = getTestCase(els.runTestcaseSelect.value);
+      if (!tc || tc.steps.length === 0) { alert('Test case is empty or not selected.'); return; }
+      state.suiteRun = null;
+      renderRunSteps();
+      // Send URL instead of tabId — extension will navigate in current tab
+      const payload = { url: runUrl, testCase: tc };
+      sendToExtension('WA_RUN_TEST_CASE', payload);
+      return;
+    }
+
+    // Chrome tab selected — use tabId as before
     const tabId = getTargetTabId();
     if (!tabId) { alert('Please select a Target Tab first.'); return; }
 
@@ -268,6 +301,37 @@ export function wireRunEvents() {
 
   els.btnRunSuite.addEventListener('click', () => {
     if (!connected) { alert('Please Connect to the extension first.'); return; }
+
+    // If DB URL pattern selected → navigate to that URL in current tab
+    if (isTargetTabFromDb()) {
+      const runUrl = getTargetTabUrl();
+      if (!runUrl) { alert('No URL available for this tab.'); return; }
+      const suite = getSuite(els.runSuiteSelect.value);
+      if (!suite || suite.testCaseIds.length === 0) { alert('Suite is empty or not selected.'); return; }
+
+      const statuses = {};
+      suite.testCaseIds.forEach((id) => { statuses[id] = 'pending'; });
+      state.suiteRun = { suiteRunId: uid('sr'), testCaseIds: suite.testCaseIds, statuses };
+
+      renderSuitePreview();
+      renderRunStepsForSuite(suite.testCaseIds);
+      expandedTestCaseIds.clear();
+      suite.testCaseIds.forEach((tcId) => {
+        expandedTestCaseIds.add(tcId);
+      });
+      els.runStepList.querySelectorAll('.suite-testcase-header').forEach((h) => {
+        h.classList.add('expanded');
+      });
+      els.runStepList.querySelectorAll('.suite-testcase-steps').forEach((s) => {
+        s.classList.add('expanded');
+      });
+
+      // Send URL instead of tabId — extension will navigate in current tab
+      sendToExtension('WA_RUN_TEST_SUITE', { url: runUrl, suite });
+      return;
+    }
+
+    // Chrome tab selected — use tabId as before
     const tabId = getTargetTabId();
     if (!tabId) { alert('Please select a Target Tab first.'); return; }
     const suite = getSuite(els.runSuiteSelect.value);

@@ -1,8 +1,8 @@
 // Suite Builder
 
-import { state, getTestCase, getSuite, escapeHtml, uid } from './state.js';
+import { state, getTestCase, getSuite, escapeHtml, uid, getTestCasesByUrl } from './state.js';
 import { els } from './dom.js';
-import { sendToExtension } from './connection.js';
+import { sendToExtension, getTargetTabUrl } from './connection.js';
 import * as api from './api.js';
 
 // ---------------- Suite Selectors ----------------
@@ -55,15 +55,19 @@ export function renderSuiteSelectors() {
   if (els.btnDeleteSuite) els.btnDeleteSuite.disabled = !state.activeSuiteId;
   if (els.btnExportSuite) els.btnExportSuite.disabled = !state.activeSuiteId;
 
-  // Test case selector for adding to suite
+  // Test case selector for adding to suite (filtered by target tab URL)
+  const targetUrl = getTargetTabUrl();
+  const filteredTcs = getTestCasesByUrl(targetUrl);
   els.suiteAddTestcaseSelect.innerHTML = '';
-  if (state.testCases.length === 0) {
+  if (filteredTcs.length === 0) {
     const opt = document.createElement('option');
-    opt.textContent = '(No Test Case in Test Builder)';
+    opt.textContent = targetUrl
+      ? '(No Test Case for this tab)'
+      : '(No Test Case in Test Builder)';
     opt.value = '';
     els.suiteAddTestcaseSelect.appendChild(opt);
   } else {
-    state.testCases.forEach((tc) => {
+    filteredTcs.forEach((tc) => {
       const opt = document.createElement('option');
       opt.value = tc.id;
       opt.textContent = tc.name;
@@ -105,11 +109,15 @@ export function renderSuiteItems() {
 
 // ---------------- Suite Operations ----------------
 
-export function persistActiveSuite() {
-  const suite = getSuite(state.activeSuiteId);
-  if (!suite) return;
-  sendToExtension('WA_SAVE_TEST_SUITE', { suite });
-  // Don't auto-save to server - only save when user clicks 💾 Save button
+/**
+ * Persist the active suite to DB (auto-save on every change).
+ */
+export async function persistActiveSuite() {
+  try {
+    await api.saveTestSuitesToServer();
+  } catch (e) {
+    console.error('[Suite] Failed to auto-save suite to DB:', e);
+  }
   renderSuiteSelectors();
 }
 

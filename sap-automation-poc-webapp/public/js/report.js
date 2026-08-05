@@ -1,7 +1,8 @@
 // Report rendering
 
-import { state, escapeHtml } from './state.js';
+import { state, escapeHtml, getReportsByUrl } from './state.js';
 import { els } from './dom.js';
+import { getTargetTabUrl } from './connection.js';
 
 export function fmtTime(ts) {
   if (!ts) return '-';
@@ -80,15 +81,17 @@ export function buildSuiteReportGroup(suiteRunId, suiteName, reports) {
 
 export function renderReports() {
   if (!els.reportList) return; // tab not loaded yet
+  const targetUrl = getTargetTabUrl();
+  const filteredReports = getReportsByUrl(targetUrl);
   els.reportList.innerHTML = '';
-  els.reportEmpty.classList.toggle('visible', state.reports.length === 0);
+  els.reportEmpty.classList.toggle('visible', filteredReports.length === 0);
 
   const renderedSuiteRuns = new Set();
-  state.reports.forEach((report) => {
+  filteredReports.forEach((report) => {
     if (report.suiteRunId) {
       if (renderedSuiteRuns.has(report.suiteRunId)) return;
       renderedSuiteRuns.add(report.suiteRunId);
-      const groupReports = state.reports
+      const groupReports = filteredReports
         .filter((r) => r.suiteRunId === report.suiteRunId)
         .sort((a, b) => (a.suiteIndex ?? 0) - (b.suiteIndex ?? 0));
       els.reportList.appendChild(buildSuiteReportGroup(report.suiteRunId, report.suiteName, groupReports));

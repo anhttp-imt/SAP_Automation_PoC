@@ -11,6 +11,7 @@ const reportsRoutes = require('./routes/reports');
 const objectsRoutes = require('./routes/objects');
 const testcasesRoutes = require('./routes/testcases');
 const testsuitesRoutes = require('./routes/testsuites');
+const targettabsRoutes = require('./routes/targettabs');
 
 const PORT = 8787;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -50,7 +51,7 @@ const MIME_TYPES = {
 };
 
 // Route handlers in order
-const routes = [reportsRoutes, objectsRoutes, testcasesRoutes, testsuitesRoutes];
+const routes = [reportsRoutes, objectsRoutes, testcasesRoutes, testsuitesRoutes, targettabsRoutes];
 
 const server = http.createServer(async (req, res) => {
   // Try each route module

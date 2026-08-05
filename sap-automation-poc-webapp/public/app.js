@@ -8,6 +8,7 @@ import {
   sendToExtension,
   renderTabOptions,
   setPortMessageHandler,
+  getTargetTabUrl,
 } from './js/connection.js';
 import {
   renderSteps,
@@ -36,43 +37,115 @@ import {
 } from './js/events.js';
 import * as api from './js/api.js';
 
+// Cached DB pageUrlPatterns (loaded from server on init)
+let dbPageUrlPatterns = [];
+
+/**
+ * Refresh DB pageUrlPatterns from server, then re-render target tab dropdown.
+ */
+async function refreshDbPageUrlPatterns() {
+  try {
+    const res = await fetch('/api/target-tabs');
+    dbPageUrlPatterns = await res.json();
+  } catch (e) {
+    console.error('[Frontend] Failed to load target tabs from server:', e);
+  }
+  // Re-render merged tab list (Chrome tabs + DB patterns)
+  refreshTargetTabDropdown();
+}
+
+/**
+ * Re-render the target tab dropdown with current Chrome tabs + DB patterns.
+ * Called after DB patterns change or Chrome tabs change.
+ */
+function refreshTargetTabDropdown() {
+  // Get current Chrome tabs from extension if connected
+  let chromeTabs = [];
+  if (connected) {
+    sendToExtension('WA_LIST_TABS');
+  }
+  // If not connected, still show DB patterns
+  if (!connected && dbPageUrlPatterns.length > 0) {
+    const dbTabs = dbPageUrlPatterns.map((p, i) => ({
+      id: `db_${i}`,
+      pageUrlPattern: p,
+      url: p,
+      title: '',
+      source: 'db',
+    }));
+    renderTabOptions(dbTabs);
+  }
+}
+
+// Also update DB patterns from in-memory state (after WA_ALL_DATA or server load)
+function updateDbPatternsFromState() {
+  const patterns = new Set();
+  state.objects.forEach((o) => {
+    if (o.pageUrlPattern && o.pageUrlPattern.trim()) patterns.add(o.pageUrlPattern.trim());
+  });
+  state.testCases.forEach((tc) => {
+    if (tc.pageUrlPattern && tc.pageUrlPattern.trim()) patterns.add(tc.pageUrlPattern.trim());
+  });
+  dbPageUrlPatterns = [...patterns];
+}
+
 // ---------------- Port Message Handler ----------------
 
 function handlePortMessage(message) {
   if (!message || typeof message.type !== 'string') return;
   switch (message.type) {
-    case 'WA_TABS_LIST':
-      renderTabOptions(message.tabs || []);
+    case 'WA_TABS_LIST': {
+      // Merge Chrome tabs with DB pageUrlPatterns
+      const chromeTabs = (message.tabs || []).map((t) => ({
+        id: String(t.id),
+        url: t.url || '',
+        title: t.title || '',
+        source: 'chrome',
+      }));
+      // Get URLs already covered by Chrome tabs (normalized)
+      const chromeUrls = new Set(chromeTabs.map((t) => (t.url || '').trim().toLowerCase()));
+      const dbTabs = dbPageUrlPatterns
+        .filter((p) => !chromeUrls.has(p.trim().toLowerCase())) // Deduplicate against Chrome tabs
+        .map((p, i) => ({
+          id: `db_${i}`,
+          pageUrlPattern: p,
+          url: p,
+          title: '',
+          source: 'db',
+        }));
+      renderTabOptions([...chromeTabs, ...dbTabs]);
       break;
+    }
     case 'WA_ALL_DATA':
-      state.objects = message.objects || [];
-      state.testCases = message.testCases || [];
-      state.testSuites = message.testSuites || [];
-      state.variables = message.variables || {};
-      renderVariables();
-      renderStepObjectOptions();
-      renderTestCaseSelectors();
-      renderSteps();
-      renderSuiteSelectors();
-      renderSuiteItems();
-      renderRunSteps();
-      if (els.runModeSelect && els.runModeSelect.value === 'suite') {
-        renderSuitePreview();
+      // Data source is now DB only — do NOT overwrite state from extension.
+      // Extension is only used for runtime (record, run, tab listing).
+      // Objects, test cases, test suites are loaded from server in init().
+      console.log('[Frontend] WA_ALL_DATA received but ignored — using DB as data source.');
+      break;
+    case 'WA_EVT_OBJECT_ADDED': {
+      const currentTabUrl = getTargetTabUrl();
+      const entry = {
+        ...message.entry,
+        // Priority: extension's pageUrlPattern > parentUrl > url > current target tab URL
+        pageUrlPattern: message.entry.pageUrlPattern || message.entry.parentUrl || message.entry.url || currentTabUrl,
+      };
+      // Update existing object or add new one
+      const existingIdx = state.objects.findIndex((o) => o.id === entry.id);
+      if (existingIdx !== -1) {
+        state.objects[existingIdx] = entry;
+      } else {
+        state.objects.push(entry);
       }
-      // Don't auto-save to server - only save when user clicks 💾 Save button
-      // Reports are loaded from server API, not from extension
-      loadReportsFromServer();
-      break;
-    case 'WA_EVT_OBJECT_ADDED':
-      if (!state.objects.some((o) => o.id === message.entry.id)) state.objects.push(message.entry);
       renderStepObjectOptions();
       renderSteps();
-      // Don't auto-save to server - only save when user clicks 💾 Save button
+      // Auto-save objects to DB
+      api.saveObjectsToServer().catch((e) => console.error('[Frontend] Failed to auto-save objects:', e));
       break;
+    }
     case 'WA_EVT_STEP_ADDED': {
       let tc = getTestCase(state.activeTestCaseId);
       if (!tc) {
-        tc = { id: uid('tc'), name: `Recorded ${new Date().toLocaleTimeString('en-US')}`, steps: [], createdAt: Date.now() };
+        tc = { id: uid('tc'), name: `Recorded ${new Date().toLocaleTimeString('en-US')}`, steps: [], createdAt: Date.now(), pageUrlPattern: getTargetTabUrl() };
         state.testCases.push(tc);
         state.activeTestCaseId = tc.id;
         renderTestCaseSelectors();
@@ -80,7 +153,7 @@ function handlePortMessage(message) {
       tc.steps.push(message.step);
       renderSteps();
       persistActiveTestCase();
-      // Don't auto-save to server - only save when user clicks 💾 Save button
+      // Auto-save test cases to DB (persistActiveTestCase now saves to server)
       break;
     }
     case 'WA_EVT_RUN_STARTED':
@@ -144,7 +217,8 @@ function handlePortMessage(message) {
       setRunButtonsState(false);
       break;
     case 'WA_EVT_DATA_CHANGED':
-      sendToExtension('WA_GET_ALL_DATA');
+      // Data changes from extension are ignored — DB is the source of truth.
+      // If user needs to sync, they should use Save/Load buttons.
       break;
     default:
       break;
@@ -182,6 +256,10 @@ async function init() {
     api.loadTestCasesFromServer(),
     api.loadTestSuitesFromServer(),
   ]);
+  // Load DB pageUrlPatterns for target tab dropdown
+  await refreshDbPageUrlPatterns();
+  // Also update from in-memory state (objects + test cases just loaded)
+  updateDbPatternsFromState();
   // Render reports after loading
   renderReports();
 

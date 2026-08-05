@@ -1,8 +1,9 @@
 // Step Edit Modal
 
-import { state, getTestCase, getObject } from './state.js';
+import { state, getTestCase, getObject, getObjectsByUrl } from './state.js';
 import { els } from './dom.js';
 import { renderSteps, persistActiveTestCase } from './builder.js';
+import { getTargetTabUrl } from './connection.js';
 
 let editingStepIndex = null;
 
@@ -12,15 +13,16 @@ export function openStepEditModal(idx) {
   const step = tc.steps[idx];
   editingStepIndex = idx;
 
-  // Populate object select
+  // Populate object select (filtered by target tab URL)
   els.editStepObjectSelect.innerHTML = '';
-  if (state.objects.length === 0) {
+  const filteredObjects = getObjectsByUrl(getTargetTabUrl());
+  if (filteredObjects.length === 0) {
     const opt = document.createElement('option');
-    opt.textContent = '(No Object)';
+    opt.textContent = '(No Object for this tab)';
     opt.value = '';
     els.editStepObjectSelect.appendChild(opt);
   } else {
-    state.objects.forEach((obj) => {
+    filteredObjects.forEach((obj) => {
       const opt = document.createElement('option');
       opt.value = obj.id;
       opt.textContent = obj.name;

@@ -1,8 +1,8 @@
 // Test Builder: step list rendering, CRUD, drag-drop
 
-import { state, getTestCase, getObject, escapeHtml, stepSummary, uid } from './state.js';
+import { state, getTestCase, getObject, escapeHtml, stepSummary, uid, getTestCasesByUrl, getObjectsByUrl } from './state.js';
 import { els } from './dom.js';
-import { sendToExtension } from './connection.js';
+import { sendToExtension, getTargetTabUrl } from './connection.js';
 import { openStepEditModal } from './modal.js';
 import * as api from './api.js';
 
@@ -52,47 +52,49 @@ export function renderSteps() {
 
 export function renderTestCaseSelectors() {
   if (!els.testcaseSelect) return; // tab not loaded yet
+  const targetUrl = getTargetTabUrl();
+  const filteredTcs = getTestCasesByUrl(targetUrl);
   // Update Builder tab selector
   {
     const prevValue = els.testcaseSelect.value;
     els.testcaseSelect.innerHTML = '';
-    if (state.testCases.length === 0) {
+    if (filteredTcs.length === 0) {
       const opt = document.createElement('option');
-      opt.textContent = '(No Test Case)';
+      opt.textContent = targetUrl ? '(No Test Case for this tab)' : '(No Test Case)';
       opt.value = '';
       els.testcaseSelect.appendChild(opt);
     } else {
-      state.testCases.forEach((tc) => {
+      filteredTcs.forEach((tc) => {
         const opt = document.createElement('option');
         opt.value = tc.id;
         opt.textContent = `${tc.name} (${tc.steps.length} step)`;
         els.testcaseSelect.appendChild(opt);
       });
     }
-    if (prevValue && state.testCases.some((t) => t.id === prevValue)) els.testcaseSelect.value = prevValue;
+    if (prevValue && filteredTcs.some((t) => t.id === prevValue)) els.testcaseSelect.value = prevValue;
   }
   // Update Run tab selector (may not be loaded yet)
   if (els.runTestcaseSelect) {
     const prevValue = els.runTestcaseSelect.value;
     els.runTestcaseSelect.innerHTML = '';
-    if (state.testCases.length === 0) {
+    if (filteredTcs.length === 0) {
       const opt = document.createElement('option');
-      opt.textContent = '(No Test Case)';
+      opt.textContent = targetUrl ? '(No Test Case for this tab)' : '(No Test Case)';
       opt.value = '';
       els.runTestcaseSelect.appendChild(opt);
     } else {
-      state.testCases.forEach((tc) => {
+      filteredTcs.forEach((tc) => {
         const opt = document.createElement('option');
         opt.value = tc.id;
         opt.textContent = `${tc.name} (${tc.steps.length} step)`;
         els.runTestcaseSelect.appendChild(opt);
       });
     }
-    if (prevValue && state.testCases.some((t) => t.id === prevValue)) els.runTestcaseSelect.value = prevValue;
+    if (prevValue && filteredTcs.some((t) => t.id === prevValue)) els.runTestcaseSelect.value = prevValue;
   }
 
-  if (!state.activeTestCaseId || !getTestCase(state.activeTestCaseId)) {
-    state.activeTestCaseId = state.testCases[0]?.id || null;
+  if (!state.activeTestCaseId || !filteredTcs.some((t) => t.id === state.activeTestCaseId)) {
+    state.activeTestCaseId = filteredTcs[0]?.id || null;
   }
   if (state.activeTestCaseId) els.testcaseSelect.value = state.activeTestCaseId;
 
@@ -106,15 +108,19 @@ export function renderTestCaseSelectors() {
 
 export function renderStepObjectOptions() {
   if (!els.stepObjectSelect) return; // tab not loaded yet
+  const targetUrl = getTargetTabUrl();
+  const filteredObjects = getObjectsByUrl(targetUrl);
   els.stepObjectSelect.innerHTML = '';
-  if (state.objects.length === 0) {
+  if (filteredObjects.length === 0) {
     const opt = document.createElement('option');
-    opt.textContent = '(No Object - Please scan in the extension first.)';
+    opt.textContent = targetUrl
+      ? '(No Object for this tab - Please scan in the extension first.)'
+      : '(No Object - Please scan in the extension first.)';
     opt.value = '';
     els.stepObjectSelect.appendChild(opt);
     return;
   }
-  state.objects.forEach((obj) => {
+  filteredObjects.forEach((obj) => {
     const opt = document.createElement('option');
     opt.value = obj.id;
     opt.textContent = obj.name;
@@ -124,11 +130,15 @@ export function renderStepObjectOptions() {
 
 // ---------------- Step Operations ----------------
 
-export function persistActiveTestCase() {
-  const tc = getTestCase(state.activeTestCaseId);
-  if (!tc) return;
-  sendToExtension('WA_SAVE_TEST_CASE', { testCase: tc });
-  // Don't auto-save to server - only save when user clicks 💾 Save button
+/**
+ * Persist the active test case to DB (auto-save on every change).
+ */
+export async function persistActiveTestCase() {
+  try {
+    await api.saveTestCasesToServer();
+  } catch (e) {
+    console.error('[Builder] Failed to auto-save test case to DB:', e);
+  }
   renderTestCaseSelectors();
 }
 

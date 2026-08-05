@@ -612,7 +612,44 @@ chrome.runtime.onConnectExternal.addListener((port) => {
           break;
         }
         case 'WA_RUN_TEST_SUITE': {
-          runTestSuite(message.tabId, message.suite);
+          // DB URL mode: open URL in NEW tab, then run suite
+          if (message.url) {
+            (async () => {
+              try {
+                // Open URL in new tab
+                const newTab = await chrome.tabs.create({ url: message.url, active: true });
+                // Wait for page to fully load
+                await new Promise((resolve) => {
+                  const checkInterval = setInterval(() => {
+                    chrome.tabs.get(newTab.id).then((tab) => {
+                      if (tab && tab.status === 'complete') {
+                        clearInterval(checkInterval);
+                        resolve();
+                      }
+                    }).catch(() => {
+                      clearInterval(checkInterval);
+                      resolve();
+                    });
+                  }, 200);
+                  setTimeout(resolve, 30000);
+                });
+                // Extra wait for SAP UI / SPA to finish rendering
+                await new Promise((r) => setTimeout(r, 2000));
+                // Inject content script in new tab
+                await ensureContentScriptInjected(newTab.id);
+                await new Promise((r) => setTimeout(r, 500));
+                // Focus the new tab
+                await focusTab(newTab.id);
+                // Now run the suite
+                runTestSuite(newTab.id, message.suite);
+              } catch (e) {
+                port.postMessage({ type: 'WA_RUN_ERROR', error: `Navigation failed: ${e.message}` });
+              }
+            })();
+          } else {
+            // Chrome tab mode: use tabId directly
+            runTestSuite(message.tabId, message.suite);
+          }
           break;
         }
         case 'WA_DELETE_OBJECT': {
@@ -644,7 +681,44 @@ chrome.runtime.onConnectExternal.addListener((port) => {
           break;
         }
         case 'WA_RUN_TEST_CASE': {
-          runTestCase(message.tabId, message.testCase);
+          // DB URL mode: open URL in NEW tab, then run
+          if (message.url) {
+            (async () => {
+              try {
+                // Open URL in new tab
+                const newTab = await chrome.tabs.create({ url: message.url, active: true });
+                // Wait for page to fully load
+                await new Promise((resolve) => {
+                  const checkInterval = setInterval(() => {
+                    chrome.tabs.get(newTab.id).then((tab) => {
+                      if (tab && tab.status === 'complete') {
+                        clearInterval(checkInterval);
+                        resolve();
+                      }
+                    }).catch(() => {
+                      clearInterval(checkInterval);
+                      resolve();
+                    });
+                  }, 200);
+                  setTimeout(resolve, 30000);
+                });
+                // Extra wait for SAP UI / SPA to finish rendering
+                await new Promise((r) => setTimeout(r, 2000));
+                // Inject content script in new tab
+                await ensureContentScriptInjected(newTab.id);
+                await new Promise((r) => setTimeout(r, 500));
+                // Focus the new tab
+                await focusTab(newTab.id);
+                // Now run the test case
+                runTestCase(newTab.id, message.testCase);
+              } catch (e) {
+                port.postMessage({ type: 'WA_RUN_ERROR', error: `Navigation failed: ${e.message}` });
+              }
+            })();
+          } else {
+            // Chrome tab mode: use tabId directly
+            runTestCase(message.tabId, message.testCase);
+          }
           break;
         }
         case 'WA_CANCEL_RUN': {
