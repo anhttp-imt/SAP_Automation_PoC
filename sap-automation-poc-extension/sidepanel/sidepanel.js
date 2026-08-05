@@ -142,7 +142,10 @@
   }
 
   async function addSelectedScannedObjects() {
-    const entries = Array.from(scanAllState.selected).map((i) => scanAllState.results[i]);
+    const entries = Array.from(scanAllState.selected).map((i) => {
+      const candidate = scanAllState.results[i];
+      return { ...candidate, name: `${candidate.name} (${candidate.tagName})` };
+    });
     if (entries.length === 0) return;
     await send('SP_ADD_SCANNED_OBJECTS', { entries });
     closeScanAllPanel();
