@@ -164,16 +164,18 @@ export function wireBuilderEvents() {
     }
   });
 
-  // Load test cases from server
+  // Refresh Builder tab: reload both objects and test cases from server
   els.btnLoadTcFromServer.addEventListener('click', async () => {
     try {
+      await api.loadObjectsFromServer();
       await api.loadTestCasesFromServer();
       if (connected) sendToExtension('WA_SAVE_ALL_TEST_CASES', { testCases: state.testCases });
+      renderStepObjectOptions();
       renderTestCaseSelectors();
       renderSteps();
-      alert(`Loaded ${state.testCases.length} test cases from server.`);
+      alert(`Loaded ${state.objects.length} objects and ${state.testCases.length} test cases from server.`);
     } catch (e) {
-      alert(`Failed to load test cases from server: ${e.message}`);
+      alert(`Failed to load from server: ${e.message}`);
     }
   });
 }

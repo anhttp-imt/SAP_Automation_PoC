@@ -135,25 +135,36 @@
     );
   }
 
+  // Click/hover events often land on an inner presentation node (e.g. the <bdi>
+  // SAP UI5 wraps button text in) rather than the actual interactive control.
+  // Walk up to the nearest real interactive ancestor so naming/selectors match
+  // what Scan All already finds by querying SCANNABLE_SELECTOR directly.
+  function resolveInteractiveElement(el) {
+    if (!el || !el.closest) return el;
+    if (el.matches && el.matches(SCANNABLE_SELECTOR)) return el;
+    return el.closest(SCANNABLE_SELECTOR) || el;
+  }
+
   // ---------------- Scan mode ----------------
 
   function onScanMouseMove(e) {
-    const el = e.target;
+    const el = resolveInteractiveElement(e.target);
     if (isIgnorableElement(el)) return;
     ensureOverlay();
     positionOverlay(el, overlayEl, labelEl);
   }
 
   function onScanClick(e) {
-    const el = e.target;
+    const el = resolveInteractiveElement(e.target);
     if (isIgnorableElement(el)) return;
     e.preventDefault();
     e.stopPropagation();
     const selectors = SapAutomationSelectorUtils.generateSelectors(el);
+    const tagName = el.tagName.toLowerCase();
     const entry = {
-      name: describeElement(el),
+      name: `${describeElement(el)} (${tagName})`,
       selectors,
-      tagName: el.tagName.toLowerCase(),
+      tagName,
       pageUrlPattern: location.origin + location.pathname,
       capturedAt: Date.now(),
     };
@@ -234,14 +245,14 @@
   }
 
   function onRecordClick(e) {
-    const el = e.target;
+    const el = resolveInteractiveElement(e.target);
     if (isIgnorableElement(el)) return;
     if (actionForElement(el) !== 'click') return; // text inputs recorded on change instead
     emitRecordedStep(el, 'click');
   }
 
   function onRecordChange(e) {
-    const el = e.target;
+    const el = resolveInteractiveElement(e.target);
     if (isIgnorableElement(el)) return;
     const action = actionForElement(el);
     if (action === 'input') emitRecordedStep(el, 'input', el.value);

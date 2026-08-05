@@ -19,6 +19,30 @@ After editing code, go back to `chrome://extensions` and click the reload button
 
 ## 2. Run the Web App
 
+### Connect to the database (MongoDB)
+
+The Web App persists Object Repository / Test Case / Test Suite / Report data to MongoDB (see `db.js`).
+
+1. `cd sap-automation-poc-webapp`
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+4. Edit `.env` and set your connection info:
+   ```
+   PORT=8787
+   MONGODB_URI=<your MongoDB connection string>
+   DB_NAME=<your database name>
+   ```
+   - For a local MongoDB instance: `MONGODB_URI=mongodb://localhost:27017`
+   - For MongoDB Atlas (cloud): use the `mongodb+srv://...` URI from your Atlas cluster's **Connect** dialog.
+5. `.env` is gitignored — never commit real credentials to `.env.example` or elsewhere in the repo.
+
+If the DB fails to connect, the server still starts (static files are served), but any Object/Test Case/Suite/Report operation will fail — check the terminal for `[MongoDB] Failed to connect` and verify your `MONGODB_URI`.
+
+### Start the server
+
 ```bash
 cd sap-automation-poc-webapp
 node server.js
@@ -43,7 +67,7 @@ Two ways to build the Object Repository — pick whichever fits the page:
 **Manual scan (hover & click one at a time)**
 1. Open the extension's Side Panel, click **Start Scan**.
 2. On the tab under test (not the Web App tab), hover the mouse to see the orange highlight box, click the elements you want to use (e.g. the Username field, Password field, Login button).
-3. Elements appear in the Side Panel's Object Repository, and are automatically synced to the Web App.
+3. Elements appear in the Side Panel's Object Repository named as `<name> (<tag>)` (e.g. `Save (button)`), same convention as **Scan All**, and are automatically synced to the Web App. If the click/hover lands on an inner presentation node (e.g. SAP UI5 wraps button text in a `<bdi>`), the scanner walks up to the nearest real interactive ancestor (`button`/`a`/`input`/`[role=button]`/etc.) so the captured name and selector target the actual control instead of the inner text node.
 4. Click **Stop Scan** when done.
 
 **Scan All (scan the whole page at once)**
@@ -82,5 +106,5 @@ Two ways to build the Object Repository — pick whichever fits the page:
 - No data-driven testing, no Requirement/Risk-based design module.
 - No CI/CD runner — only runs through the Web App UI / Side Panel.
 - Suite runs fail-fast (stops immediately on a failed test case), no "run everything then summarize" or retry option.
-- Data (Object Repository, Test Case, Test Suite, Report) is still stored in the extension's `chrome.storage.local` — uninstalling the extension loses the data. The Web App stores nothing; it's just a remote-control layer.
+- Data (Object Repository, Test Case, Test Suite, Report) is persisted by the Web App to MongoDB (see [Connect to the database](#2-run-the-web-app)); the extension itself only keeps an in-session copy and holds nothing durable.
 - Only the single origin `http://localhost:8787` is whitelisted in `externally_connectable`.

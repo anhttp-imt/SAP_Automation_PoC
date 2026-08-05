@@ -138,8 +138,8 @@ function handlePortMessage(message) {
       }
       renderStepObjectOptions();
       renderSteps();
-      // Auto-save objects to DB
-      api.saveObjectsToServer().catch((e) => console.error('[Frontend] Failed to auto-save objects:', e));
+      // Not auto-saved: user must click "Save to Server" in the extension Side Panel
+      // to persist to DB, same as rename/delete — then Refresh here to see it.
       break;
     }
     case 'WA_EVT_STEP_ADDED': {
