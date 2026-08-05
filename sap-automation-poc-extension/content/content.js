@@ -186,9 +186,14 @@
   // ---------------- Scan All mode ----------------
 
   const SCANNABLE_SELECTOR = [
-    'a[href]', 'button', 'input', 'select', 'textarea', 'label',
+    'a[href]', 'button', 'input', 'select', 'textarea', 'label', 'li',
     '[role="button"]', '[role="link"]', '[role="checkbox"]', '[role="radio"]',
     '[role="tab"]', '[role="menuitem"]', '[role="switch"]', '[role="combobox"]',
+    '[role="option"]', '[role="row"]', '[role="gridcell"]', '[role="treeitem"]',
+    '[role="listitem"]',
+    // SAPUI5 list-item rows (e.g. value-help/dropdown popup entries) use
+    // roving tabindex="-1" and often no ARIA role, so they're otherwise invisible here.
+    '.sapMLIB',
     '[onclick]', '[tabindex]:not([tabindex="-1"])',
   ].join(',');
 
