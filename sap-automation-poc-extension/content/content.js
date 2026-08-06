@@ -425,7 +425,6 @@
     scrollElementIntoView(el);
     // Give smooth-scrolling containers a moment to settle before we measure anything.
     await sleep(100);
-    positionOverlay(el, runOverlayEl, null);
 
     function centerOf(target) {
       const r = target.getBoundingClientRect();
@@ -438,9 +437,13 @@
     // Only mouse-driven actions get the fake cursor; typing/waiting/etc. don't need it.
     const usesCursor = step.action === 'click' || step.action === 'select';
     if (usesCursor) {
+      // Move the cursor first, then reveal the highlight once it arrives -
+      // otherwise the highlight jumps to the target ahead of the cursor.
       await moveCursorTo(cx, cy);
+      positionOverlay(el, runOverlayEl, null);
       await sleep(150);
     } else {
+      positionOverlay(el, runOverlayEl, null);
       await sleep(300);
     }
 
