@@ -61,7 +61,6 @@ const tabCacheFns = {
     Object.assign(els, {
       reportList: $('report-list'),
       reportEmpty: $('report-empty'),
-      btnClearReports: $('btn-clear-reports'),
       btnClearStorage: $('btn-clear-storage'),
     });
   },

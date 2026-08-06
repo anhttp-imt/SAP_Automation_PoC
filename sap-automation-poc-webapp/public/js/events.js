@@ -377,41 +377,26 @@ export function wireRunEvents() {
 // ==================== Report Tab Events ====================
 
 export function wireReportEvents() {
-  els.btnClearReports.addEventListener('click', async () => {
+  els.btnClearStorage.addEventListener('click', async () => {
     if (!confirm(
-      '🗑 Delete report history\n\n' +
+      '🗑 Clear History\n\n' +
       'This will delete all saved test results (PASS/FAIL).\n' +
-      'Objects, Test Cases, and Test Suites remain unaffected.\n\n' +
+      'Objects, Test Cases, and Test Suites will remain unchanged.\n\n' +
       'Are you sure you want to continue?'
     )) return;
-    // Clear reports from server
+
+    // 1. Clear reports from MongoDB
     try {
       await api.clearReportsFromServer();
-      renderReports();
     } catch (e) {
       alert('Failed to clear reports: ' + e.message);
+      return;
     }
-  });
 
-  els.btnClearStorage.addEventListener('click', () => {
-    if (!confirm(
-      '⚠️ Delete all storages\n\n' +
-      'This action will permanently delete all data:\n' +
-      '  • Object Repository (all scanned selectors)\n' +
-      '  • Test Cases (all created tests)\n' +
-      '  • Test Suites (all configured suites)\n' +
-      '  • Reports (all saved test results)\n\n' +
-      'This action CANNOT be undone.\n\n' +
-      'Are you sure you want to continue?'
-    )) return;
-    sendToExtension('WA_CLEAR_ALL_STORAGE');
-    state.objects = [];
-    state.testCases = [];
-    state.testSuites = [];
+    // 2. Clear in-memory state
     state.reports = [];
-    renderStepObjectOptions();
-    renderTestCaseSelectors();
-    renderSuiteSelectors();
+
+    // 3. Re-render reports view
     renderReports();
   });
 }

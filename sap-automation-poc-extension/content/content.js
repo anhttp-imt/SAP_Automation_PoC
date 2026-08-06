@@ -356,7 +356,7 @@
     if (!el) {
       return {
         status: 'fail',
-        message: `Không tìm thấy element (selector: ${SapAutomationSelectorUtils.pickBestSelector(selectors || {})})`,
+        message: `Element not found (selector: ${SapAutomationSelectorUtils.pickBestSelector(selectors || {})})`,
       };
     }
     // Scroll through all parent containers that might be clipping the element
@@ -406,7 +406,7 @@
           const actual = (el.innerText ?? el.value ?? '').trim();
           const expected = (step.expectedValue ?? step.value ?? '').trim();
           if (actual !== expected) {
-            return { status: 'fail', message: `Verify thất bại: mong đợi "${expected}", thực tế "${actual}"` };
+            return { status: 'fail', message: `Verify failed: expected "${expected}", actual "${actual}"` };
           }
           break;
         }
