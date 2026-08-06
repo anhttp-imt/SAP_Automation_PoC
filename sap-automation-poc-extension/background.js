@@ -395,7 +395,7 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
   }
 }
 
-// Chạy tuần tự các test case trong 1 Suite. Dừng ngay khi 1 test case fail (fail-fast).
+// Run test cases sequentially in a Suite. Stops immediately when a test case fails (fail-fast).
 async function runTestSuite(tabId, suite) {
   if (!tabId) return;
   const testCases = await getAll(STORAGE_KEYS.TEST_CASES);

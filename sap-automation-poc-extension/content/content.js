@@ -474,10 +474,10 @@
           break;
         }
         default:
-          return { status: 'fail', message: `Action không hỗ trợ: ${step.action}` };
+          return { status: 'fail', message: `Action not supported: ${step.action}` };
       }
     } catch (err) {
-      return { status: 'fail', message: `Lỗi khi thực thi: ${err.message}` };
+      return { status: 'fail', message: `Execution error: ${err.message}` };
     }
 
     await sleep(150);

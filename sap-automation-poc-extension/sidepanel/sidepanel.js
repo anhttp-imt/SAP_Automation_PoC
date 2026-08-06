@@ -166,7 +166,7 @@
 
     els.btnCopyId.addEventListener('click', async () => {
       await navigator.clipboard.writeText(chrome.runtime.id);
-      els.btnCopyId.textContent = 'Đã copy!';
+      els.btnCopyId.textContent = 'Copied!';
       setTimeout(() => { els.btnCopyId.textContent = 'Copy'; }, 1200);
     });
 
