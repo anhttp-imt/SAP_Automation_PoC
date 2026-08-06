@@ -7,6 +7,8 @@
   let overlayEl = null;
   let labelEl = null;
   let runOverlayEl = null;
+  let cursorEl = null;
+  let rippleEl = null;
 
   function ensureOverlay() {
     if (!overlayEl) {
@@ -131,8 +133,68 @@
       el === document.body ||
       el.classList.contains('sap-automation-poc-highlight-overlay') ||
       el.classList.contains('sap-automation-poc-highlight-label') ||
-      el.classList.contains('sap-automation-poc-run-overlay')
+      el.classList.contains('sap-automation-poc-run-overlay') ||
+      el.classList.contains('sap-automation-poc-cursor') ||
+      el.classList.contains('sap-automation-poc-click-ripple')
     );
+  }
+
+  // ---------------- Fake mouse cursor (playback visualization) ----------------
+  // Purely cosmetic: shows a moving pointer + click ripple during BG_EXECUTE_STEP
+  // so a human watching the run can follow along, similar to Tosca's execution view.
+
+  const CURSOR_SVG =
+    '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M3 2 L3 18.5 L7.2 14.8 L10.2 21.5 L13.2 20.1 L10.2 13.4 L16 13.4 Z" ' +
+    'fill="#ffffff" stroke="#1565c0" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+
+  function ensureCursor() {
+    if (!cursorEl) {
+      cursorEl = document.createElement('div');
+      cursorEl.className = 'sap-automation-poc-cursor';
+      cursorEl.style.display = 'none';
+      cursorEl.innerHTML = CURSOR_SVG;
+      document.documentElement.appendChild(cursorEl);
+    }
+    if (!rippleEl) {
+      rippleEl = document.createElement('div');
+      rippleEl.className = 'sap-automation-poc-click-ripple';
+      document.documentElement.appendChild(rippleEl);
+    }
+  }
+
+  // Animate the cursor to (x, y). On its very first appearance it snaps there
+  // instantly instead of flying in from the top-left corner.
+  async function moveCursorTo(x, y) {
+    ensureCursor();
+    const isFirstAppearance = cursorEl.style.display === 'none';
+    if (isFirstAppearance) {
+      cursorEl.style.transition = 'none';
+      cursorEl.style.display = 'block';
+      cursorEl.style.left = `${x}px`;
+      cursorEl.style.top = `${y}px`;
+      void cursorEl.offsetWidth; // force reflow before restoring the transition
+      cursorEl.style.transition = '';
+      return;
+    }
+    cursorEl.style.left = `${x}px`;
+    cursorEl.style.top = `${y}px`;
+    await sleep(360); // roughly matches the CSS move transition duration
+  }
+
+  function pulseCursorPress() {
+    if (!cursorEl) return;
+    cursorEl.classList.add('sap-automation-poc-cursor-pressed');
+    setTimeout(() => cursorEl.classList.remove('sap-automation-poc-cursor-pressed'), 150);
+  }
+
+  function showClickRipple(x, y) {
+    ensureCursor();
+    rippleEl.classList.remove('sap-automation-poc-click-ripple-animate');
+    rippleEl.style.left = `${x}px`;
+    rippleEl.style.top = `${y}px`;
+    void rippleEl.offsetWidth; // restart the CSS animation
+    rippleEl.classList.add('sap-automation-poc-click-ripple-animate');
   }
 
   // Click/hover events often land on an inner presentation node (e.g. the <bdi>
@@ -361,18 +423,39 @@
     }
     // Scroll through all parent containers that might be clipping the element
     scrollElementIntoView(el);
+    // Give smooth-scrolling containers a moment to settle before we measure anything.
+    await sleep(100);
     positionOverlay(el, runOverlayEl, null);
-    await sleep(300);
+
+    function centerOf(target) {
+      const r = target.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+
+    const initialCenter = centerOf(el);
+    const cx = initialCenter.x;
+    const cy = initialCenter.y;
+    // Only mouse-driven actions get the fake cursor; typing/waiting/etc. don't need it.
+    const usesCursor = step.action === 'click' || step.action === 'select';
+    if (usesCursor) {
+      await moveCursorTo(cx, cy);
+      await sleep(150);
+    } else {
+      await sleep(300);
+    }
 
     try {
       switch (step.action) {
         case 'click': {
-          const rect = el.getBoundingClientRect();
-          const cx = rect.left + rect.width / 2;
-          const cy = rect.top + rect.height / 2;
-          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: cx, clientY: cy, buttons: 0 }));
-          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: cx, clientY: cy, buttons: 0 }));
-          el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy, buttons: 0 }));
+          // Re-measure right before the click: the element may have shifted slightly
+          // (layout settling, smooth scroll) since the cursor started moving toward it.
+          const clickPoint = centerOf(el);
+          pulseCursorPress();
+          showClickRipple(clickPoint.x, clickPoint.y);
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
+          await sleep(80);
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
           break;
         }
         case 'input': {
@@ -398,10 +481,14 @@
           el.blur();
           break;
         }
-        case 'select':
+        case 'select': {
+          const selectPoint = centerOf(el);
+          pulseCursorPress();
+          showClickRipple(selectPoint.x, selectPoint.y);
           el.value = step.value ?? '';
           el.dispatchEvent(new Event('change', { bubbles: true }));
           break;
+        }
         case 'verify': {
           const actual = (el.innerText ?? el.value ?? '').trim();
           const expected = (step.expectedValue ?? step.value ?? '').trim();
