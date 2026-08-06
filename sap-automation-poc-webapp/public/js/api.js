@@ -34,6 +34,16 @@ export async function clearReportsFromServer() {
   }
 }
 
+export async function loadReportScreenshots(reportId) {
+  try {
+    const res = await fetch(`/api/reports/${encodeURIComponent(reportId)}/screenshots`);
+    return await res.json();
+  } catch (e) {
+    console.error('[API] Failed to load report screenshots:', e);
+    return [];
+  }
+}
+
 // ---------------- Objects ----------------
 
 export async function loadObjectsFromServer() {

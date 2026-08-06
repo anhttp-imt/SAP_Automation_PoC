@@ -17,11 +17,27 @@ async function connect() {
   await client.connect({ serverSelectionTimeoutMS: 3000 });
   db = client.db(DB_NAME);
   console.log(`[MongoDB] Connected to ${URI}/${DB_NAME}`);
+
+  // Create indexes for sort + query performance
+  await db.collection(REPORT_COLLECTION).createIndex({ createdAt: -1 });
+  await db.collection(OBJECTS_COLLECTION).createIndex({ id: 1 });
+  await db.collection(TESTCASES_COLLECTION).createIndex({ id: 1 });
+  await db.collection(TESTSUITES_COLLECTION).createIndex({ id: 1 });
+  console.log('[MongoDB] Indexes created');
 }
 
 // --- Public API ---
 async function loadReports() {
-  return await db.collection(REPORT_COLLECTION).find({}).sort({ createdAt: -1 }).toArray();
+  // Projection: exclude screenshotDataUrl from steps for fast list load
+  return await db.collection(REPORT_COLLECTION)
+    .find({}, { projection: { 'steps.screenshotDataUrl': 0 } })
+    .sort({ createdAt: -1 })
+    .toArray();
+}
+
+async function getReportWithScreenshots(reportId) {
+  // Return full report WITH screenshots for detail view
+  return await db.collection(REPORT_COLLECTION).findOne({ id: reportId });
 }
 
 async function saveReport(report) {
@@ -165,7 +181,7 @@ async function getUniquePageUrlPatterns() {
 
 module.exports = {
   connect,
-  loadReports, saveReport, deleteReport, deleteAllReports,
+  loadReports, getReportWithScreenshots, saveReport, deleteReport, deleteAllReports,
   loadObjects, saveAllObjects, deleteAllObjects,
   loadTestCases, saveAllTestCases, deleteAllTestCases,
   loadTestSuites, saveAllTestSuites, deleteAllTestSuites,

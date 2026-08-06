@@ -39,6 +39,27 @@ exports.handle = async (req, res, { parseBody, sendJSON }) => {
     return true;
   }
 
+  // GET /api/reports/:id/screenshots — lazy-load screenshots for a report
+  if (urlPath.match(/^\/api\/reports\/[^/]+\/screenshots$/) && req.method === 'GET') {
+    try {
+      const reportId = urlPath.split('/')[3];
+      const report = await db.getReportWithScreenshots(reportId);
+      if (!report) {
+        sendJSON(res, 404, { error: 'Report not found' });
+      } else {
+        // Extract only screenshotDataUrl from steps
+        const screenshots = (report.steps || []).map((s) => ({
+          stepId: s.stepId,
+          screenshotDataUrl: s.screenshotDataUrl,
+        }));
+        sendJSON(res, 200, screenshots);
+      }
+    } catch (e) {
+      sendJSON(res, 500, { error: e.message });
+    }
+    return true;
+  }
+
   // DELETE /api/reports/:id
   if (urlPath.startsWith('/api/reports/') && req.method === 'DELETE') {
     try {

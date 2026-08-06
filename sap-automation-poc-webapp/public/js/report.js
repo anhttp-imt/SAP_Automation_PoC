@@ -3,6 +3,10 @@
 import { state, escapeHtml, getReportsByUrl } from './state.js';
 import { els } from './dom.js';
 import { getTargetTabUrl } from './connection.js';
+import * as api from './api.js';
+
+// Cache: reportId → screenshots array (loaded once)
+const screenshotsCache = new Map();
 
 export function fmtTime(ts) {
   if (!ts) return '-';
@@ -37,19 +41,55 @@ export function buildReportCard(report) {
   (report.steps || []).forEach((s, idx) => {
     const row = document.createElement('div');
     row.className = 'report-step-row';
+    row.dataset.stepId = s.stepId;
+    row.dataset.reportId = report.id;
+    // <div class="report-screenshot-placeholder" title="Click to load screenshot">
+    //     <span class="screenshot-icon">📷</span>
+    //   </div>
     row.innerHTML = `
-      ${s.screenshotDataUrl ? `<img src="${s.screenshotDataUrl}" alt="screenshot" class="report-screenshot-thumb" />` : ''}
       <div class="report-step-info">
         <div><span class="status-chip status-${s.status}">${s.status}</span> step ${idx + 1} (${s.durationMs}ms)</div>
         <div class="report-step-msg"></div>
       </div>
     `;
     row.querySelector('.report-step-msg').textContent = s.message || '';
-    const img = row.querySelector('img');
-    if (img) img.addEventListener('click', (e) => {
+
+    // Lazy-load screenshot on click
+    row.addEventListener('click', async (e) => {
       e.stopPropagation();
-      showScreenshotPreview(s.screenshotDataUrl);
+      const placeholder = row.querySelector('.report-screenshot-placeholder');
+      if (!placeholder) return;
+
+      // Check if already loaded
+      if (row.querySelector('.report-screenshot-thumb')) return;
+
+      // Load screenshots for this report if not cached
+      if (!screenshotsCache.has(report.id)) {
+        const screenshots = await api.loadReportScreenshots(report.id);
+        screenshotsCache.set(report.id, screenshots);
+      }
+
+      const screenshots = screenshotsCache.get(report.id);
+      const stepScreenshot = screenshots?.find((ss) => ss.stepId === s.stepId);
+
+      if (stepScreenshot && stepScreenshot.screenshotDataUrl) {
+        // Replace placeholder with actual image
+        const img = document.createElement('img');
+        img.src = stepScreenshot.screenshotDataUrl;
+        img.alt = 'screenshot';
+        img.className = 'report-screenshot-thumb';
+        img.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showScreenshotPreview(stepScreenshot.screenshotDataUrl);
+        });
+        placeholder.replaceWith(img);
+      } else {
+        // No screenshot available
+        placeholder.innerHTML = '<span class="screenshot-icon" title="No screenshot">🚫</span>';
+        placeholder.style.opacity = '0.3';
+      }
     });
+
     body.appendChild(row);
   });
 

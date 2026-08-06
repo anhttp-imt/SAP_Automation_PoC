@@ -91,7 +91,7 @@ function updateDbPatternsFromState() {
 
 // ---------------- Port Message Handler ----------------
 
-function handlePortMessage(message) {
+async function handlePortMessage(message) {
   if (!message || typeof message.type !== 'string') return;
   switch (message.type) {
     case 'WA_TABS_LIST': {
@@ -177,8 +177,8 @@ function handlePortMessage(message) {
     case 'WA_EVT_RUN_FINISHED':
       state.running = false;
       setRunButtonsState(false);
-      // Save report to server
-      api.saveReportToServer(message.report);
+      // Save report to server FIRST, then update UI
+      await api.saveReportToServer(message.report);
       state.reports.unshift(message.report);
       renderReports();
       break;
