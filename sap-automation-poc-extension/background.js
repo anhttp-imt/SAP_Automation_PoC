@@ -92,6 +92,35 @@ async function focusTab(tabId) {
   }
 }
 
+// chrome.tabs.sendMessage has no built-in timeout: if the content script never calls
+// sendResponse (e.g. stuck waiting on a busy indicator, or an unhandled exception before
+// responding), the run hangs forever with no way to cancel it. Bound every step-execution
+// call so a non-responding page fails that step instead of freezing the whole run.
+function sendMessageWithTimeout(tabId, message, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out after ${timeoutMs / 1000}s waiting for page response`));
+    }, timeoutMs);
+    chrome.tabs.sendMessage(tabId, message).then(
+      (result) => { clearTimeout(timer); resolve(result); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+// MV3 service workers are terminated by Chrome after ~30s without a qualifying chrome.*
+// API call in flight. A test case with many steps/waits can easily go quiet longer than
+// that from Chrome's point of view, killing the worker mid-run: the step loop is abandoned
+// (run looks hung), the web app's port disconnects, and WA_CANCEL_RUN silently no-ops
+// because there's nothing left listening. Ping a trivial API on an interval while a run is
+// in progress to keep the worker alive for the whole run.
+function startKeepAlive() {
+  const timer = setInterval(() => {
+    chrome.runtime.getPlatformInfo(() => {});
+  }, 20000);
+  return () => clearInterval(timer);
+}
+
 function waitForElement(tabId, selectors, timeoutMs = 10000, intervalMs = 300) {
   return new Promise((resolve) => {
     const start = Date.now();
@@ -137,6 +166,8 @@ function resolveVariables(step) {
 // Returns report.overallStatus ('pass' | 'fail') so runTestSuite can decide whether to continue.
 async function runTestCase(tabId, testCase, suiteMeta = null) {
   if (!tabId) return 'fail';
+  const stopKeepAlive = startKeepAlive();
+  try {
   // Don't focus target tab so web app can still show realtime status.
   // Content script still works on non-visible tabs.
   // Screenshots may fail on non-visible tabs but are handled with try/catch.
@@ -153,9 +184,8 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
       error: 'Cannot run on selected tab (page has permission restrictions).',
       ...(suiteMeta ? { suiteRunId: suiteMeta.suiteRunId, suiteName: suiteMeta.suiteName, suiteIndex: suiteMeta.index, suiteCount: suiteMeta.count } : {}),
     };
-    const reports = await getAll(STORAGE_KEYS.REPORTS);
-    reports.unshift(failReport);
-    await setAll(STORAGE_KEYS.REPORTS, reports.slice(0, 50));
+    // Reports are persisted by the web app (to MongoDB), not in chrome.storage.local —
+    // storing per-step screenshots here risks hitting the storage quota and delays the run.
     broadcastToWebApps('WA_EVT_RUN_FINISHED', { report: failReport });
     return 'fail';
   }
@@ -228,7 +258,7 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
     } else if (step.action === 'extract') {
       // Extract action - find element, read value, store in variable
       try {
-        result = await chrome.tabs.sendMessage(tabId, {
+        result = await sendMessageWithTimeout(tabId, {
           type: 'BG_EXECUTE_STEP',
           step,
           selectors: objEntry.selectors,
@@ -277,7 +307,7 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
       // Resolve variables in step value before sending to content script
       const resolvedStep = resolveVariables(step);
       try {
-        result = await chrome.tabs.sendMessage(tabId, {
+        result = await sendMessageWithTimeout(tabId, {
           type: 'BG_EXECUTE_STEP',
           step: resolvedStep,
           selectors: objEntry.selectors,
@@ -312,9 +342,9 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
       await ensureContentScriptInjected(tabId);
       // Wait for page to be interactive (SAP UI frameworks need extra time)
       try {
-        const checkResult = await chrome.tabs.sendMessage(tabId, {
+        const checkResult = await sendMessageWithTimeout(tabId, {
           type: 'BG_CHECK_PAGE_READY',
-        });
+        }, 5000);
         if (!checkResult || !checkResult.ready) {
           // Page not ready yet, wait a bit more
           await new Promise((r) => setTimeout(r, 2000));
@@ -356,12 +386,13 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
   }
   report.finishedAt = Date.now();
 
-  const reports = await getAll(STORAGE_KEYS.REPORTS);
-  reports.unshift(report);
-  await setAll(STORAGE_KEYS.REPORTS, reports.slice(0, 20));
-
+  // Reports are persisted by the web app (to MongoDB), not in chrome.storage.local —
+  // storing per-step screenshots here risks hitting the storage quota and delays the run.
   broadcastToWebApps('WA_EVT_RUN_FINISHED', { report });
   return report.overallStatus;
+  } finally {
+    stopKeepAlive();
+  }
 }
 
 // Chạy tuần tự các test case trong 1 Suite. Dừng ngay khi 1 test case fail (fail-fast).

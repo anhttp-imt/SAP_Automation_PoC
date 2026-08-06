@@ -365,8 +365,11 @@ export function wireRunEvents() {
   });
 
   // Cancel run
+  // No `if (!state.running) return` guard here on purpose: the button's `disabled`
+  // attribute already gates normal clicks, and if local state ever desyncs from what the
+  // extension is actually doing (e.g. this tab reloaded mid-run), the guard would silently
+  // swallow the click with no feedback instead of at least trying to cancel.
   els.btnCancelRun.addEventListener('click', () => {
-    if (!state.running) return;
     sendToExtension('WA_CANCEL_RUN', {});
   });
 }

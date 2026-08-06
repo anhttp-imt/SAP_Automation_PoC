@@ -216,11 +216,18 @@ async function handlePortMessage(message) {
       state.running = false;
       setRunButtonsState(false);
       break;
+    case 'WA_RUN_ERROR':
+      // Note: no alert() here — this arrives async on a port message, and a blocking
+      // alert() freezes all page JS (including pending fetch/render) until dismissed,
+      state.running = false;
+      setRunButtonsState(false);
+      console.error('[Run] Extension reported an error:', message.error);
+      break;
     case 'WA_EVT_DATA_CHANGED':
       // Data changes from extension are ignored — DB is the source of truth.
       // If user needs to sync, they should use Save/Load buttons.
       break;
-    default:
+      default:
       break;
   }
 }
