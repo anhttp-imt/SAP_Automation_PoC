@@ -1,9 +1,9 @@
 // Event wiring — shared events + per-tab events
 
-import { state, getTestCase, getSuite, uid } from './state.js';
+import { state, getTestCase, getSuite, getObject, actionLabel, uid, findDuplicateStepIndex } from './state.js';
 import { els } from './dom.js';
 import { connected, sendToExtension, connectToExtension, getTargetTabId, getTargetTabUrl, isTargetTabFromDb } from './connection.js';
-import { renderSteps, renderTestCaseSelectors, renderStepObjectOptions, persistActiveTestCase } from './builder.js';
+import { renderSteps, renderTestCaseSelectors, renderStepObjectOptions } from './builder.js';
 import { closeStepEditModal, saveStepEdit } from './modal.js';
 import { renderSuiteSelectors, renderSuiteItems, persistActiveSuite } from './suite.js';
 import * as api from './api.js';
@@ -16,7 +16,11 @@ import {
   renderVariables,
   expandedTestCaseIds,
 } from './run.js';
-import { renderReports, hideScreenshotPreview } from './report.js';
+import { renderReports, hideScreenshotPreview, clearScreenshotsCache } from './report.js';
+
+// Track state when recording starts (for dedup on stop)
+let recordStartIndex = 0;
+let recordTestCaseId = null;
 
 // ==================== Shared Events ====================
 
@@ -111,6 +115,99 @@ export function wireBuilderEvents() {
     const tabId = getTargetTabId();
     if (!tabId) { alert('Choose Target Tab'); return; }
     if (!state.activeTestCaseId) return;
+
+    if (!state.recording) {
+      // Starting record — save current TC and step count
+      const tc = getTestCase(state.activeTestCaseId);
+      recordTestCaseId = state.activeTestCaseId;
+      recordStartIndex = tc ? tc.steps.length : 0;
+    } else {
+      // Stopping record — dedup recorded steps
+      const tc = getTestCase(state.activeTestCaseId);
+      if (tc) {
+        // If user switched TC during recording, use the original TC
+        const targetTc = recordTestCaseId && recordTestCaseId !== state.activeTestCaseId
+          ? getTestCase(recordTestCaseId) || tc
+          : tc;
+
+        // Only consider steps before recordStartIndex as "existing"
+        const existingSteps = targetTc.steps.slice(0, recordStartIndex);
+        const recorded = targetTc.steps.slice(recordStartIndex);
+        const seenKeys = new Set();
+        const keep = [];
+        const duplicates = [];
+
+        // Mark existing step keys so we don't re-add them
+        for (const s of existingSteps) {
+          const key = `${s.objectId}_${s.action}`;
+          seenKeys.add(key);
+        }
+
+        for (const step of recorded) {
+          const key = `${step.objectId}_${step.action}`;
+          // Check 1: duplicate within recorded batch
+          if (seenKeys.has(key)) {
+            // Check if it duplicates an existing step (before recordStartIndex)
+            const existingIdx = existingSteps.findIndex(s =>
+              s.objectId === step.objectId && s.action === step.action
+            );
+            if (existingIdx >= 0) {
+              duplicates.push({ ...step, _duplicateIndex: existingIdx });
+            }
+            // Otherwise it's a batch-only duplicate → just drop it
+            continue;
+          }
+          // Check 2: duplicate with existing steps before recording
+          const existingIdx = existingSteps.findIndex(s =>
+            s.objectId === step.objectId && s.action === step.action
+          );
+          if (existingIdx >= 0) {
+            duplicates.push({ ...step, _duplicateIndex: existingIdx });
+            continue;
+          }
+          keep.push(step);
+          seenKeys.add(key);
+        }
+
+        // Replace recorded steps with non-duplicates
+        targetTc.steps.splice(recordStartIndex, recorded.length, ...keep);
+
+        // Single confirm listing all duplicates
+        if (duplicates.length > 0) {
+          const dupLines = duplicates.map(dup => {
+            const obj = getObject(dup.objectId);
+            return `Step ${dup._duplicateIndex + 1} (${actionLabel(dup.action)} on ${obj?.name})`;
+          });
+          const msg = `Duplicate step(s) found:\n${dupLines.join('\n')}\n\nOverride existing steps with recorded values?`;
+          if (confirm(msg)) {
+            // OK → Override: replace existing steps with recorded values
+            for (const dup of duplicates) {
+              const clean = { ...dup };
+              delete clean._duplicateIndex;
+              targetTc.steps[dup._duplicateIndex] = clean;
+            }
+          } else {
+            // Cancel → Skip: keep existing, append recorded as new steps (mark as duplicate)
+            const cleanDups = duplicates.map(d => {
+              const clean = { ...d };
+              const dupOf = clean._duplicateIndex;
+              delete clean._duplicateIndex;
+              clean._duplicateOf = dupOf; // Mark which existing step this is a duplicate of
+              return clean;
+            });
+            targetTc.steps.push(...cleanDups);
+          }
+        }
+      }
+      // If we deduped on a different TC (user switched during recording),
+      // switch back to it so the user sees the result
+      if (targetTc && targetTc.id !== state.activeTestCaseId) {
+        state.activeTestCaseId = targetTc.id;
+      }
+      renderSteps();
+      renderTestCaseSelectors();
+    }
+
     setRecording(!state.recording);
     sendToExtension(state.recording ? 'WA_START_RECORD' : 'WA_STOP_RECORD', { tabId });
   });
@@ -136,7 +233,20 @@ export function wireBuilderEvents() {
     if (action === 'openurl') step.value = rawValue;
     if (action === 'extract') step.variableName = variableName || 'extractedValue';
 
-    tc.steps.push(step);
+    // Check for duplicate step (same objectId + same action)
+    const dupIdx = findDuplicateStepIndex(tc, step);
+    if (dupIdx >= 0) {
+      const obj = getObject(step.objectId);
+      if (confirm(`Step ${dupIdx + 1} already has '${actionLabel(step.action)} on ${obj?.name}'. Override or Skip?`)) {
+        tc.steps[dupIdx] = step;
+      } else {
+        // Cancel → Skip: keep existing, append as new step with duplicate badge
+        step._duplicateOf = dupIdx;
+        tc.steps.push(step);
+      }
+    } else {
+      tc.steps.push(step);
+    }
     // Ensure pageUrlPattern is set from current target tab
     if (!tc.pageUrlPattern) {
       tc.pageUrlPattern = getTargetTabUrl();
@@ -217,8 +327,13 @@ export function wireSuiteEvents() {
     if (!suite) { alert('Please select or create suite!'); return; }
     const tcId = els.suiteAddTestcaseSelect.value;
     if (!tcId) { alert('Please create testcase in Test Builder!'); return; }
+    if (suite.testCaseIds.includes(tcId)) {
+      alert('This test case is already in the suite.');
+      return;
+    }
     suite.testCaseIds.push(tcId);
     renderSuiteItems();
+    renderSuiteSelectors();
     await persistActiveSuite();
   });
 
@@ -396,7 +511,10 @@ export function wireReportEvents() {
     // 2. Clear in-memory state
     state.reports = [];
 
-    // 3. Re-render reports view
+    // 3. Clear screenshots cache
+    clearScreenshotsCache();
+
+    // 4. Re-render reports view
     renderReports();
   });
 }

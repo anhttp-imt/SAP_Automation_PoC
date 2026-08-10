@@ -14,7 +14,6 @@ import {
   renderSteps,
   renderTestCaseSelectors,
   renderStepObjectOptions,
-  persistActiveTestCase,
 } from './js/builder.js';
 import { renderSuiteSelectors, renderSuiteItems } from './js/suite.js';
 import {
@@ -27,7 +26,7 @@ import {
   renderVariables,
   expandedTestCaseIds,
 } from './js/run.js';
-import { renderReports } from './js/report.js';
+import { renderReports, clearScreenshotsCache } from './js/report.js';
 import {
   wireSharedEvents,
   wireBuilderEvents,
@@ -66,13 +65,20 @@ function refreshTargetTabDropdown() {
   }
   // If not connected, still show DB patterns
   if (!connected && dbPageUrlPatterns.length > 0) {
-    const dbTabs = dbPageUrlPatterns.map((p, i) => ({
-      id: `db_${i}`,
-      pageUrlPattern: p,
-      url: p,
-      title: '',
-      source: 'db',
-    }));
+    const dbTabs = dbPageUrlPatterns.map((p) => {
+      let hash = 0;
+      const normalized = p.trim();
+      for (let i = 0; i < normalized.length; i++) {
+        hash = ((hash << 5) - hash + normalized.charCodeAt(i)) | 0;
+      }
+      return {
+        id: `db_${Math.abs(hash).toString(36)}`,
+        pageUrlPattern: p,
+        url: p,
+        title: '',
+        source: 'db',
+      };
+    });
     renderTabOptions(dbTabs);
   }
 }
@@ -104,15 +110,24 @@ async function handlePortMessage(message) {
       }));
       // Get URLs already covered by Chrome tabs (normalized)
       const chromeUrls = new Set(chromeTabs.map((t) => (t.url || '').trim().toLowerCase()));
+      // Use hash of URL pattern as ID for stability across re-renders
       const dbTabs = dbPageUrlPatterns
         .filter((p) => !chromeUrls.has(p.trim().toLowerCase())) // Deduplicate against Chrome tabs
-        .map((p, i) => ({
-          id: `db_${i}`,
-          pageUrlPattern: p,
-          url: p,
-          title: '',
-          source: 'db',
-        }));
+        .map((p) => {
+          // Simple hash: convert URL pattern to a stable numeric ID
+          let hash = 0;
+          const normalized = p.trim();
+          for (let i = 0; i < normalized.length; i++) {
+            hash = ((hash << 5) - hash + normalized.charCodeAt(i)) | 0;
+          }
+          return {
+            id: `db_${Math.abs(hash).toString(36)}`,
+            pageUrlPattern: p,
+            url: p,
+            title: '',
+            source: 'db',
+          };
+        });
       renderTabOptions([...chromeTabs, ...dbTabs]);
       break;
     }
@@ -145,15 +160,23 @@ async function handlePortMessage(message) {
     case 'WA_EVT_STEP_ADDED': {
       let tc = getTestCase(state.activeTestCaseId);
       if (!tc) {
+        // No active TC — create one and notify user
         tc = { id: uid('tc'), name: `Recorded ${new Date().toLocaleTimeString('en-US')}`, steps: [], createdAt: Date.now(), pageUrlPattern: getTargetTabUrl() };
         state.testCases.push(tc);
         state.activeTestCaseId = tc.id;
         renderTestCaseSelectors();
+        console.log(`[Frontend] Auto-created TC "${tc.name}" for recorded step.`);
+      }
+      // Check for duplicate in real-time — mark with _duplicateOf badge immediately
+      const dupIdx = tc.steps.findIndex(s =>
+        s.objectId === message.step.objectId && s.action === message.step.action
+      );
+      if (dupIdx >= 0) {
+        message.step._duplicateOf = dupIdx;
       }
       tc.steps.push(message.step);
       renderSteps();
-      persistActiveTestCase();
-      // Auto-save test cases to DB (persistActiveTestCase now saves to server)
+      renderTestCaseSelectors();
       break;
     }
     case 'WA_EVT_RUN_STARTED':
@@ -178,9 +201,18 @@ async function handlePortMessage(message) {
       state.running = false;
       setRunButtonsState(false);
       // Save report to server FIRST, then update UI
-      await api.saveReportToServer(message.report);
-      state.reports.unshift(message.report);
-      renderReports();
+      if (message.report) {
+        try {
+          await api.saveReportToServer(message.report);
+          state.reports.unshift(message.report);
+        } catch (e) {
+          console.error('Failed to save report to server:', e);
+          // Still show report in UI but warn user
+          state.reports.unshift(message.report);
+          alert('Report saved to UI but failed to persist to server. It may be lost on refresh.');
+        }
+        renderReports();
+      }
       break;
     case 'WA_EVT_SUITE_STARTED': {
       state.running = true;
@@ -227,7 +259,13 @@ async function handlePortMessage(message) {
       // Data changes from extension are ignored — DB is the source of truth.
       // If user needs to sync, they should use Save/Load buttons.
       break;
-      default:
+    case 'WA_EVT_PORT_DISCONNECTED':
+      // SW died mid-run — reset running state to prevent permanent UI freeze
+      state.running = false;
+      state.suiteRun = null;
+      setRunButtonsState(false);
+      break;
+    default:
       break;
   }
 }
@@ -238,6 +276,7 @@ async function loadReportsFromServer() {
   try {
     const res = await fetch('/api/reports');
     state.reports = await res.json();
+    clearScreenshotsCache();
     renderReports();
   } catch (e) {
     console.error('[Frontend] Failed to load reports from server:', e);

@@ -366,12 +366,17 @@
   }
 
   function setNativeValue(el, value) {
-    const proto = Object.getPrototypeOf(el);
+    // Resolve wrapper element to actual input (SAP UI5 wraps inputs in divs/spans)
+    const target = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
+      ? el
+      : el.querySelector('input, textarea');
+    if (!target) return; // cannot find input to set value on
+    const proto = Object.getPrototypeOf(target);
     const desc = Object.getOwnPropertyDescriptor(proto, 'value');
-    if (desc && desc.set) desc.set.call(el, value);
-    else el.value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (desc && desc.set) desc.set.call(target, value);
+    else target.value = value;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function scrollElementIntoView(el) {
@@ -455,8 +460,13 @@
           const clickPoint = centerOf(el);
           pulseCursorPress();
           showClickRipple(clickPoint.x, clickPoint.y);
-          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
+          // Dispatch PointerEvent (SAP UI5 newer controls) AND MouseEvent (legacy)
+          el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, button: 0, buttons: 1, pointerType: 'mouse', isPrimary: true }));
           await sleep(80);
+          el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, button: 0, buttons: 0, pointerType: 'mouse', isPrimary: true }));
+          el.dispatchEvent(new PointerEvent('click', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, button: 0, buttons: 0, pointerType: 'mouse', isPrimary: true }));
+          // Also dispatch MouseEvent for legacy controls
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
           el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
           el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
           break;
@@ -507,15 +517,13 @@
           // Extract text/value from element and return it for variable storage
           let extractedText = '';
           try {
-            // Try multiple strategies to get text content safely
+            // Strategy 1: Use value property for inputs (safe, no getter trigger)
             if (el.value !== undefined && el.value !== '') {
               extractedText = String(el.value).trim();
-            } else if (el.textContent) {
-              extractedText = el.textContent.trim();
-            } else if (el.innerText) {
-              extractedText = el.innerText.trim();
-            } else {
-              // Fallback: get child text nodes only (avoids triggering SAP UI5 getters)
+            }
+            // Strategy 2: Use treeWalker to get child text nodes only
+            // This avoids triggering SAP UI5 getters on textContent/innerText
+            else if (el.childNodes.length > 0) {
               const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
               const texts = [];
               let node;
@@ -524,10 +532,14 @@
               }
               extractedText = texts.join('').trim();
             }
+            // Strategy 3: Fallback to innerText (may trigger re-render but needed for some cases)
+            else {
+              extractedText = (el.innerText || '').trim();
+            }
           } catch (e) {
-            // Last resort: use outerText or nodeValue
+            // Last resort: use nodeValue
             try {
-              extractedText = String(el.textContent || el.firstChild?.nodeValue || '').trim();
+              extractedText = String(el.firstChild?.nodeValue || '').trim();
             } catch (e2) {
               extractedText = '';
             }

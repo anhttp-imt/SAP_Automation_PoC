@@ -2,7 +2,7 @@
 
 import { state, getTestCase, getObject, getObjectsByUrl } from './state.js';
 import { els } from './dom.js';
-import { renderSteps, persistActiveTestCase } from './builder.js';
+import { renderSteps, renderTestCaseSelectors } from './builder.js';
 import { getTargetTabUrl } from './connection.js';
 
 let editingStepIndex = null;
@@ -83,5 +83,5 @@ export function saveStepEdit() {
 
   closeStepEditModal();
   renderSteps();
-  persistActiveTestCase();
+  renderTestCaseSelectors();
 }

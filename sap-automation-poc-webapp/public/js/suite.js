@@ -57,7 +57,10 @@ export function renderSuiteSelectors() {
 
   // Test case selector for adding to suite (filtered by target tab URL)
   const targetUrl = getTargetTabUrl();
-  const filteredTcs = getTestCasesByUrl(targetUrl);
+  const suite = getSuite(state.activeSuiteId);
+  const filteredTcs = getTestCasesByUrl(targetUrl).filter(
+    (tc) => !suite || !suite.testCaseIds.includes(tc.id)
+  );
   els.suiteAddTestcaseSelect.innerHTML = '';
   if (filteredTcs.length === 0) {
     const opt = document.createElement('option');

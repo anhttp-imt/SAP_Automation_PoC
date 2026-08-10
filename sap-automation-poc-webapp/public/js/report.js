@@ -8,6 +8,13 @@ import * as api from './api.js';
 // Cache: reportId → screenshots array (loaded once)
 const screenshotsCache = new Map();
 
+/**
+ * Clear the screenshots cache (called when reports are reloaded or cleared).
+ */
+export function clearScreenshotsCache() {
+  screenshotsCache.clear();
+}
+
 export function fmtTime(ts) {
   if (!ts) return '-';
   return new Date(ts).toLocaleString('en-US');

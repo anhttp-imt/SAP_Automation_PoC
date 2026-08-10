@@ -14,14 +14,13 @@ export async function loadReportsFromServer() {
 }
 
 export async function saveReportToServer(report) {
-  try {
-    await fetch('/api/reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(report),
-    });
-  } catch (e) {
-    console.error('[API] Failed to save report to server:', e);
+  const res = await fetch('/api/reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(report),
+  });
+  if (!res.ok) {
+    throw new Error(`Server returned ${res.status}: ${res.statusText}`);
   }
 }
 
@@ -99,10 +98,19 @@ export async function loadTestCasesFromServer() {
 
 export async function saveTestCasesToServer() {
   try {
+    // Strip UI-only metadata (_duplicateOf) before persisting to DB
+    const cleanTcs = state.testCases.map(tc => {
+      const clean = { ...tc };
+      clean.steps = tc.steps.map(s => {
+        const { _duplicateOf, ...rest } = s;
+        return rest;
+      });
+      return clean;
+    });
     await fetch('/api/testcases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ testCases: state.testCases }),
+      body: JSON.stringify({ testCases: cleanTcs }),
     });
   } catch (e) {
     console.error('[API] Failed to save test cases to server:', e);

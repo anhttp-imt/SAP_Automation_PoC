@@ -1,6 +1,6 @@
 // Test Builder: step list rendering, CRUD, drag-drop
 
-import { state, getTestCase, getObject, escapeHtml, stepSummary, uid, getTestCasesByUrl, getObjectsByUrl } from './state.js';
+import { state, getTestCase, getObject, escapeHtml, stepSummary, uid, getTestCasesByUrl, getObjectsByUrl, actionLabel } from './state.js';
 import { els } from './dom.js';
 import { sendToExtension, getTargetTabUrl } from './connection.js';
 import { openStepEditModal } from './modal.js';
@@ -21,10 +21,13 @@ export function renderSteps() {
     li.className = 'item-card';
     li.draggable = true;
     li.dataset.stepIndex = idx;
+    const dupBadge = step._duplicateOf !== undefined
+      ? ` <span style="color:var(--warning); font-size:11px;" title="Duplicate of Step ${step._duplicateOf + 1}">⚠️ Dup of Step ${step._duplicateOf + 1}</span>`
+      : '';
     li.innerHTML = `
       <div class="item-card-row">
         <span class="drag-handle" title="Drag to reorder">☰</span>
-        <span class="item-title">${idx + 1}. ${escapeHtml(stepSummary(step))}</span>
+        <span class="item-title">${idx + 1}. ${escapeHtml(stepSummary(step))}${dupBadge}</span>
         <span class="item-actions">
           <button data-action="up" title="Up">↑</button>
           <button data-action="down" title="Down">↓</button>
@@ -132,36 +135,12 @@ export function renderStepObjectOptions() {
 // ---------------- Step Operations ----------------
 
 /**
- * Persist the active test case to DB (auto-save on every change).
+ * DEPRECATED — auto-save removed.
+ * Kept for backward compatibility only; not called anywhere.
  */
 export async function persistActiveTestCase() {
-  try {
-    await api.saveTestCasesToServer();
-  } catch (e) {
-    console.error('[Builder] Failed to auto-save test case to DB:', e);
-  }
+  // No-op: auto-save was removed in favor of manual save via extension.
   renderTestCaseSelectors();
-  if (els.runTestcaseSelect) {
-    const targetUrl = getTargetTabUrl();
-    const filteredTcs = getTestCasesByUrl(targetUrl);
-    const prevValue = els.runTestcaseSelect.value;
-    els.runTestcaseSelect.innerHTML = '';
-    if (filteredTcs.length === 0) {
-      const opt = document.createElement('option');
-      opt.textContent = targetUrl ? '(No Test Case for this tab)' : '(No Test Case)';
-      opt.value = '';
-      els.runTestcaseSelect.appendChild(opt);
-    } else {
-      filteredTcs.forEach((tc) => {
-        const opt = document.createElement('option');
-        opt.value = tc.id;
-        opt.textContent = `${tc.name} (${tc.steps.length} step)`;
-        els.runTestcaseSelect.appendChild(opt);
-      });
-    }
-    if (prevValue && filteredTcs.some((t) => t.id === prevValue)) els.runTestcaseSelect.value = prevValue;
-    renderRunSteps();
-  }
 }
 
 export function moveStep(idx, dir) {
@@ -178,6 +157,36 @@ export function moveStep(idx, dir) {
 export function deleteStep(idx) {
   const tc = getTestCase(state.activeTestCaseId);
   if (!tc) return;
+  const step = tc.steps[idx];
+
+  // Check if this step has duplicates (same objectId + action)
+  const actionsToCheck = ['click', 'input', 'select', 'extract', 'verify'];
+  if (actionsToCheck.includes(step.action) && step.objectId) {
+    const dupIdx = tc.steps.findIndex((s, i) =>
+      i !== idx && s.objectId === step.objectId && s.action === step.action
+    );
+    if (dupIdx >= 0) {
+      const obj = getObject(step.objectId);
+      if (confirm(`Step ${idx + 1} duplicates Step ${dupIdx + 1} (${actionLabel(step.action)} on ${obj?.name}). Delete this step and keep Step ${dupIdx + 1}?`)) {
+        // OK → delete this step, keep the duplicate
+        tc.steps.splice(idx, 1);
+        // Clean _duplicateOf from the remaining step (index may have shifted)
+        const remainingIdx = dupIdx < idx ? dupIdx : dupIdx - 1;
+        if (tc.steps[remainingIdx]) delete tc.steps[remainingIdx]._duplicateOf;
+      } else {
+        // Cancel → keep this step, delete the duplicate instead
+        tc.steps.splice(dupIdx, 1);
+        // Clean _duplicateOf from the kept step (index may have shifted)
+        const keptIdx = dupIdx < idx ? idx - 1 : idx;
+        if (tc.steps[keptIdx]) delete tc.steps[keptIdx]._duplicateOf;
+      }
+      renderSteps();
+      renderTestCaseSelectors();
+      return;
+    }
+  }
+
+  // No duplicate — normal delete
   tc.steps.splice(idx, 1);
   renderSteps();
   renderTestCaseSelectors();

@@ -125,6 +125,11 @@ function waitForElement(tabId, selectors, timeoutMs = 10000, intervalMs = 300) {
   return new Promise((resolve) => {
     const start = Date.now();
     const timer = setInterval(async () => {
+      if (cancelRun) {
+        clearInterval(timer);
+        resolve(false); // cancelled
+        return;
+      }
       if (Date.now() - start > timeoutMs) {
         clearInterval(timer);
         resolve(false); // timeout
@@ -168,10 +173,10 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
   if (!tabId) return 'fail';
   const stopKeepAlive = startKeepAlive();
   try {
-  // Don't focus target tab so web app can still show realtime status.
-  // Content script still works on non-visible tabs.
-  // Screenshots may fail on non-visible tabs but are handled with try/catch.
-  const ok = await ensureContentScriptInjected(tabId);
+    // Don't focus target tab so web app can still show realtime status.
+    // Content script still works on non-visible tabs.
+    // Screenshots may fail on non-visible tabs but are handled with try/catch.
+    const ok = await ensureContentScriptInjected(tabId);
   if (!ok) {
     const failReport = {
       id: uid('rep'),
@@ -187,6 +192,8 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
     // Reports are persisted by the web app (to MongoDB), not in chrome.storage.local —
     // storing per-step screenshots here risks hitting the storage quota and delays the run.
     broadcastToWebApps('WA_EVT_RUN_FINISHED', { report: failReport });
+    // Reset cancelRun on early exit to avoid permanent lockout
+    if (!suiteMeta) cancelRun = false;
     return 'fail';
   }
 
@@ -398,51 +405,55 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
 // Run test cases sequentially in a Suite. Stops immediately when a test case fails (fail-fast).
 async function runTestSuite(tabId, suite) {
   if (!tabId) return;
-  const testCases = await getAll(STORAGE_KEYS.TEST_CASES);
-  const suiteRunId = uid('suiterun');
-  const count = suite.testCaseIds.length;
+  try {
+    const testCases = await getAll(STORAGE_KEYS.TEST_CASES);
+    const suiteRunId = uid('suiterun');
+    const count = suite.testCaseIds.length;
 
-  // Reset variables at suite level (not per test case) so extracted values persist
-  runVariables = {};
-  await setAll(STORAGE_KEYS.VARIABLES, runVariables);
+    // Reset variables at suite level (not per test case) so extracted values persist
+    runVariables = {};
+    await setAll(STORAGE_KEYS.VARIABLES, runVariables);
 
-  broadcastToWebApps('WA_EVT_SUITE_STARTED', {
-    suiteRunId,
-    suiteId: suite.id,
-    suiteName: suite.name,
-    testCaseIds: suite.testCaseIds,
-  });
+    broadcastToWebApps('WA_EVT_SUITE_STARTED', {
+      suiteRunId,
+      suiteId: suite.id,
+      suiteName: suite.name,
+      testCaseIds: suite.testCaseIds,
+    });
 
-  // Broadcast initial empty variables state
-  broadcastToWebApps('WA_EVT_VARIABLES_RESET', {});
+    // Broadcast initial empty variables state
+    broadcastToWebApps('WA_EVT_VARIABLES_RESET', {});
 
-  let overallStatus = 'pass';
-  for (let i = 0; i < suite.testCaseIds.length; i++) {
-    if (cancelRun) break;
-    const testCaseId = suite.testCaseIds[i];
-    const tc = testCases.find((t) => t.id === testCaseId);
-    if (!tc) {
-      broadcastToWebApps('WA_EVT_SUITE_TESTCASE_FINISHED', { suiteRunId, testCaseId, status: 'fail' });
-      overallStatus = 'fail';
-      break;
+    let overallStatus = 'pass';
+    for (let i = 0; i < suite.testCaseIds.length; i++) {
+      if (cancelRun) break;
+      const testCaseId = suite.testCaseIds[i];
+      const tc = testCases.find((t) => t.id === testCaseId);
+      if (!tc) {
+        broadcastToWebApps('WA_EVT_SUITE_TESTCASE_FINISHED', { suiteRunId, testCaseId, status: 'fail' });
+        overallStatus = 'fail';
+        break;
+      }
+
+      broadcastToWebApps('WA_EVT_SUITE_TESTCASE_STARTED', { suiteRunId, testCaseId: tc.id, index: i, count });
+      const status = await runTestCase(tabId, tc, { suiteRunId, suiteName: suite.name, index: i, count });
+      broadcastToWebApps('WA_EVT_SUITE_TESTCASE_FINISHED', { suiteRunId, testCaseId: tc.id, status });
+
+      if (status === 'fail') {
+        overallStatus = 'fail';
+        break; // fail-fast: dung ngay, khong chay cac test case con lai
+      }
     }
 
-    broadcastToWebApps('WA_EVT_SUITE_TESTCASE_STARTED', { suiteRunId, testCaseId: tc.id, index: i, count });
-    const status = await runTestCase(tabId, tc, { suiteRunId, suiteName: suite.name, index: i, count });
-    broadcastToWebApps('WA_EVT_SUITE_TESTCASE_FINISHED', { suiteRunId, testCaseId: tc.id, status });
-
-    if (status === 'fail') {
-      overallStatus = 'fail';
-      break; // fail-fast: dung ngay, khong chay cac test case con lai
+    if (cancelRun) {
+      overallStatus = 'cancel';
     }
-  }
 
-  if (cancelRun) {
-    overallStatus = 'cancel';
+    broadcastToWebApps('WA_EVT_SUITE_FINISHED', { suiteRunId, overallStatus });
+  } finally {
+    // Always reset cancelRun to avoid permanent lockout
     cancelRun = false;
   }
-
-  broadcastToWebApps('WA_EVT_SUITE_FINISHED', { suiteRunId, overallStatus });
 }
 
 // ---------------- Events from content script (shared by Scan + Record + Run) ----------------

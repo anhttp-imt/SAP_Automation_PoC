@@ -45,6 +45,12 @@ export function connectToExtension(extId) {
     connected = false;
     setConnectStatus(false, err ? `Error: ${err.message}` : 'Disconnected');
     port = null;
+    // Signal SW died mid-run so app.js can reset running state
+    try {
+      if (messageHandler) {
+        messageHandler({ type: 'WA_EVT_PORT_DISCONNECTED' }, null);
+      }
+    } catch (e) { /* ignore */ }
   });
   connected = true;
   setConnectStatus(true, 'Connected');
@@ -105,7 +111,13 @@ export function renderTabOptions(tabs) {
       const opt = document.createElement('option');
       opt.value = String(t.id);
       opt.dataset.url = t.url || '';
-      opt.textContent = `${t.title || t.url} — ${t.url}`.slice(0, 90);
+      // Check if this Chrome tab URL matches any DB pattern
+      const tabUrl = (t.url || '').trim();
+      const hasDbMatch = dbTabs.some(db => {
+        const dbUrl = (db.url || '').trim();
+        return tabUrl && dbUrl && (tabUrl.startsWith(dbUrl) || dbUrl.startsWith(tabUrl));
+      });
+      opt.textContent = `${hasDbMatch ? '[✓DB] ' : ''}${t.title || t.url} — ${t.url}`.slice(0, 90);
       group.appendChild(opt);
     });
     els.targetTabSelect.appendChild(group);
@@ -126,5 +138,19 @@ export function renderTabOptions(tabs) {
   }
 
   // Restore previous selection if still valid
-  if (tabs.some((t) => String(t.id) === prevValue)) els.targetTabSelect.value = prevValue;
+  // Priority: exact match > first tab of same source type > first available tab
+  const allIds = new Set(tabs.map((t) => String(t.id)));
+  if (prevValue && allIds.has(prevValue)) {
+    els.targetTabSelect.value = prevValue;
+  } else if (prevValue) {
+    // Previous selection lost (tab closed or DB pattern removed)
+    // Try to find a DB tab if previous was DB, or first Chrome tab otherwise
+    const wasDb = prevValue.startsWith('db_');
+    const fallback = wasDb ? dbTabs[0] : chromeTabs[0];
+    if (fallback) {
+      els.targetTabSelect.value = String(fallback.id);
+    }
+  }
+  // Trigger change event so dependent views re-render
+  els.targetTabSelect.dispatchEvent(new Event('change'));
 }

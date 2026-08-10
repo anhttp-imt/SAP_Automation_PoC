@@ -35,10 +35,10 @@ export function getSuite(id) {
  * Exact match first, then checks if the URL starts with the pattern (for base-path matching).
  */
 export function urlMatchesPattern(url, pattern) {
-  if (!url || !pattern) return true;
+  if (!url || !pattern) return false;
   const u = url.trim();
   const p = pattern.trim();
-  if (!p) return true;
+  if (!u || !p) return false;
   if (u === p) return true;
   // Base-path match: URL starts with pattern
   if (u.startsWith(p)) return true;
@@ -113,4 +113,18 @@ export function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+/**
+ * Find index of existing step with same objectId + action.
+ * Returns index (≥ 0) if duplicate found, -1 if not.
+ * Only checks actions that have objectId: click, input, select, extract, verify.
+ */
+export function findDuplicateStepIndex(tc, newStep) {
+  const actionsToCheck = ['click', 'input', 'select', 'extract', 'verify'];
+  if (!actionsToCheck.includes(newStep.action)) return -1;
+  if (!newStep.objectId) return -1;
+  return tc.steps.findIndex(s =>
+    s.objectId === newStep.objectId && s.action === newStep.action
+  );
 }
