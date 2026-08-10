@@ -124,9 +124,10 @@ export function wireBuilderEvents() {
     } else {
       // Stopping record — dedup recorded steps
       const tc = getTestCase(state.activeTestCaseId);
+      let targetTc = null; // Declare outside for later use
       if (tc) {
         // If user switched TC during recording, use the original TC
-        const targetTc = recordTestCaseId && recordTestCaseId !== state.activeTestCaseId
+        targetTc = recordTestCaseId && recordTestCaseId !== state.activeTestCaseId
           ? getTestCase(recordTestCaseId) || tc
           : tc;
 
@@ -169,8 +170,15 @@ export function wireBuilderEvents() {
           seenKeys.add(key);
         }
 
-        // Replace recorded steps with non-duplicates
-        targetTc.steps.splice(recordStartIndex, recorded.length, ...keep);
+        // Clean real-time _duplicateOf from kept steps (they're finalized, not duplicates)
+        const cleanKeep = keep.map(s => {
+          const clean = { ...s };
+          delete clean._duplicateOf;
+          return clean;
+        });
+
+        // Replace recorded steps with cleaned non-duplicates
+        targetTc.steps.splice(recordStartIndex, recorded.length, ...cleanKeep);
 
         // Single confirm listing all duplicates
         if (duplicates.length > 0) {
@@ -180,10 +188,11 @@ export function wireBuilderEvents() {
           });
           const msg = `Duplicate step(s) found:\n${dupLines.join('\n')}\n\nOverride existing steps with recorded values?`;
           if (confirm(msg)) {
-            // OK → Override: replace existing steps with recorded values
+            // OK → Override: replace existing steps, clean all metadata
             for (const dup of duplicates) {
               const clean = { ...dup };
               delete clean._duplicateIndex;
+              delete clean._duplicateOf; // Remove real-time badge on finalize
               targetTc.steps[dup._duplicateIndex] = clean;
             }
           } else {

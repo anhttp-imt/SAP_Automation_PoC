@@ -188,6 +188,13 @@ export function deleteStep(idx) {
 
   // No duplicate — normal delete
   tc.steps.splice(idx, 1);
+  // Clean up any stale _duplicateOf references after delete
+  tc.steps.forEach(s => {
+    if (s._duplicateOf !== undefined) {
+      // If the referenced step was deleted or index is invalid, remove badge
+      if (s._duplicateOf >= tc.steps.length) delete s._duplicateOf;
+    }
+  });
   renderSteps();
   renderTestCaseSelectors();
 }
