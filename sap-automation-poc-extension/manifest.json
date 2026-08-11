@@ -3,16 +3,14 @@
   "name": "SAP Automation PoC - Web Test Automation",
   "version": "0.1.0",
   "description": "PoC scriptless test automation (Object Identification, Record & Playback, Test Execution & Report).",
-  "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Mo SAP Automation PoC"
-  },
-  "side_panel": {
-    "default_path": "sidepanel/sidepanel.html"
+    "default_popup": "popup/popup.html",
+    "default_title": "SAP Automation PoC"
   },
   "externally_connectable": {
     "matches": ["http://localhost:8787/*"]
