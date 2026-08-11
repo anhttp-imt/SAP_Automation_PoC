@@ -460,13 +460,8 @@
           const clickPoint = centerOf(el);
           pulseCursorPress();
           showClickRipple(clickPoint.x, clickPoint.y);
-          // Dispatch PointerEvent (SAP UI5 newer controls) AND MouseEvent (legacy)
-          el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, button: 0, buttons: 1, pointerType: 'mouse', isPrimary: true }));
-          await sleep(80);
-          el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, button: 0, buttons: 0, pointerType: 'mouse', isPrimary: true }));
-          el.dispatchEvent(new PointerEvent('click', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, button: 0, buttons: 0, pointerType: 'mouse', isPrimary: true }));
-          // Also dispatch MouseEvent for legacy controls
           el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
+          await sleep(80);
           el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
           el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: clickPoint.x, clientY: clickPoint.y, buttons: 0 }));
           break;

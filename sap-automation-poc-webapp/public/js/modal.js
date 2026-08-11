@@ -44,7 +44,7 @@ export function openStepEditModal(idx) {
   els.editStepValueInput.value = value;
 
   // Show/hide variable name row based on action
-  els.editVariableNameRow.style.display = step.action === 'extract' ? '' : 'none';
+  els.editVariableNameRow.style.display = (step.action === 'extract' || step.action === 'calculate') ? '' : 'none';
   if (step.action === 'extract') {
     els.editStepVariableNameInput.value = step.variableName || '';
   }
@@ -79,6 +79,10 @@ export function saveStepEdit() {
   if (action === 'wait') step.waitMs = parseInt(rawValue, 10) || 500;
   if (action === 'sendkey') step.value = rawValue;
   if (action === 'openurl') step.value = rawValue;
+  if (action === 'calculate') {
+    step.value = rawValue;
+    step.variableName = variableName || 'result';
+  }
   if (action === 'extract') step.variableName = variableName || 'extractedValue';
 
   closeStepEditModal();

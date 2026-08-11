@@ -84,6 +84,7 @@ export function actionLabel(action) {
     wait: 'Wait',
     openurl: 'Open URL',
     sendkey: 'Send Key',
+    calculate: 'Calculate',
   }[action] || action;
 }
 
@@ -103,6 +104,7 @@ export function stepSummary(step) {
     return `Open URL "${truncated}"`;
   }
   if (step.action === 'extract') return `Extract "${objName}" → $${step.variableName || 'value'}`;
+  if (step.action === 'calculate') return `Calculate "${step.value ?? ''}" → $${step.variableName || 'result'}`;
   if (step.action === 'verify') return `Verify "${objName}" == "${step.expectedValue ?? step.value ?? ''}"`;
   if (step.action === 'input' || step.action === 'select')
     return `${actionLabel(step.action)} "${objName}" = "${step.value ?? ''}"`;
