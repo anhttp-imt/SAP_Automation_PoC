@@ -54,6 +54,86 @@ function uid(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Safe math expression evaluator (CSP compliant - no eval/Function)
+function safeMathEval(expression) {
+  // Tokenize: numbers, operators, parentheses
+  const tokens = [];
+  let i = 0;
+  const expr = expression.replace(/\s/g, '');
+  
+  while (i < expr.length) {
+    const ch = expr[i];
+    if (ch === '(' || ch === ')') {
+      tokens.push({ type: 'paren', value: ch });
+      i++;
+    } else if ('+-*/'.includes(ch)) {
+      tokens.push({ type: 'op', value: ch });
+      i++;
+    } else if (ch >= '0' && ch <= '9' || ch === '.') {
+      let num = '';
+      while (i < expr.length && ((expr[i] >= '0' && expr[i] <= '9') || expr[i] === '.')) {
+        num += expr[i++];
+      }
+      tokens.push({ type: 'num', value: parseFloat(num) });
+    } else {
+      return { error: `Invalid character: ${ch}` };
+    }
+  }
+  
+  // Simple recursive descent parser
+  let pos = 0;
+  
+  function parseExpr() {
+    let left = parseTerm();
+    while (pos < tokens.length && tokens[pos]?.type === 'op' && (tokens[pos].value === '+' || tokens[pos].value === '-')) {
+      const op = tokens[pos++].value;
+      const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+  
+  function parseTerm() {
+    let left = parseFactor();
+    while (pos < tokens.length && tokens[pos]?.type === 'op' && (tokens[pos].value === '*' || tokens[pos].value === '/')) {
+      const op = tokens[pos++].value;
+      const right = parseFactor();
+      left = op === '*' ? left * right : left / right;
+    }
+    return left;
+  }
+  
+  function parseFactor() {
+    if (pos >= tokens.length) return 0;
+    const token = tokens[pos];
+    
+    if (token.type === 'num') {
+      pos++;
+      return token.value;
+    }
+    
+    if (token.type === 'op' && (token.value === '-' || token.value === '+')) {
+      const sign = token.value === '-' ? -1 : 1;
+      pos++;
+      return sign * parseFactor();
+    }
+    
+    if (token.type === 'paren' && token.value === '(') {
+      pos++;
+      const result = parseExpr();
+      if (pos < tokens.length && tokens[pos]?.type === 'paren' && tokens[pos].value === ')') {
+        pos++;
+      }
+      return result;
+    }
+    
+    return 0;
+  }
+  
+  const result = parseExpr();
+  return { value: result };
+}
+
 async function getAll(key) {
   const data = await chrome.storage.local.get(key);
   return data[key] || [];
@@ -259,6 +339,32 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
     if (step.action === 'wait') {
       await new Promise((r) => setTimeout(r, step.waitMs || 500));
       result = { status: 'pass', message: 'OK' };
+    } else if (step.action === 'calculate') {
+      // Calculate action - evaluate expression with variables and store result
+      try {
+        // Resolve variables in the expression first
+        const resolvedStep = resolveVariables(step);
+        let expression = resolvedStep.value ?? '';
+        
+        // Also resolve any remaining ${varName} that weren't in runVariables yet
+        expression = expression.replace(/\$\{([^}]+)\}/g, (match, varName) => {
+          return runVariables[varName] !== undefined ? runVariables[varName] : match;
+        });
+        
+        // Safe math evaluation without eval/Function (CSP compliant)
+        const calcResult = safeMathEval(expression);
+        if (calcResult.error) {
+          result = { status: 'fail', message: `Calculation error: ${calcResult.error}` };
+        } else {
+          const varName = step.variableName || 'result';
+          runVariables[varName] = String(calcResult.value);
+          await setAll(STORAGE_KEYS.VARIABLES, runVariables);
+          broadcastToWebApps('WA_EVT_VARIABLE_SET', { variableName: varName, value: String(calcResult.value) });
+          result = { status: 'pass', message: `Calculated: ${expression} = ${calcResult.value}` };
+        }
+      } catch (e) {
+        result = { status: 'fail', message: `Calculation error: ${e.message}` };
+      }
     } else if (step.action === 'openurl') {
       // Open URL in the target tab
       try {
