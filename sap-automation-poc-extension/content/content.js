@@ -9,9 +9,6 @@
   let runOverlayEl = null;
   let cursorEl = null;
   let rippleEl = null;
-  let scanBadgeEl = null;
-  let scanBadgeCount = 0;
-  let scanModeActive = false;
 
   function ensureOverlay() {
     if (!overlayEl) {
@@ -35,50 +32,6 @@
       runOverlayEl.style.display = 'none';
       document.documentElement.appendChild(runOverlayEl);
     }
-  }
-
-  // ---------------- Scan Badge (floating indicator on page) ----------------
-
-  function ensureScanBadge() {
-    if (!scanBadgeEl) {
-      scanBadgeEl = document.createElement('div');
-      scanBadgeEl.className = 'sap-automation-poc-scan-badge';
-      scanBadgeEl.style.display = 'none';
-      scanBadgeEl.innerHTML =
-        '<span class="sap-automation-poc-scan-badge-dot"></span>' +
-        '<span class="sap-automation-poc-scan-badge-count">0</span>' +
-        '<span class="sap-automation-poc-scan-badge-name"></span>';
-      document.documentElement.appendChild(scanBadgeEl);
-    }
-  }
-
-  function showScanBadge() {
-    ensureScanBadge();
-    // Force animation replay by removing/re-adding the element
-    // Use a flag to prevent updateScanBadge from failing during recreation
-    scanBadgeEl.style.display = 'none';
-    scanBadgeEl.remove();
-    scanBadgeEl = null;
-    ensureScanBadge();
-    scanBadgeEl.style.display = 'flex';
-    scanBadgeCount = 0;
-    const countEl = scanBadgeEl.querySelector('.sap-automation-poc-scan-badge-count');
-    countEl.textContent = '0';
-    const nameEl = scanBadgeEl.querySelector('.sap-automation-poc-scan-badge-name');
-    nameEl.textContent = '';
-  }
-
-  function hideScanBadge() {
-    if (scanBadgeEl) scanBadgeEl.style.display = 'none';
-  }
-
-  function updateScanBadge(name) {
-    if (!scanBadgeEl) return;
-    scanBadgeCount++;
-    const countEl = scanBadgeEl.querySelector('.sap-automation-poc-scan-badge-count');
-    countEl.textContent = scanBadgeCount;
-    const nameEl = scanBadgeEl.querySelector('.sap-automation-poc-scan-badge-name');
-    nameEl.textContent = name ? ' — ' + name : '';
   }
 
   function positionOverlay(el, overlay, label) {
@@ -182,8 +135,7 @@
       el.classList.contains('sap-automation-poc-highlight-label') ||
       el.classList.contains('sap-automation-poc-run-overlay') ||
       el.classList.contains('sap-automation-poc-cursor') ||
-      el.classList.contains('sap-automation-poc-click-ripple') ||
-      el.classList.contains('sap-automation-poc-scan-badge')
+      el.classList.contains('sap-automation-poc-click-ripple')
     );
   }
 
@@ -279,13 +231,10 @@
       capturedAt: Date.now(),
     };
     chrome.runtime.sendMessage({ type: 'CS_OBJECT_CAPTURED', entry });
-    updateScanBadge(entry.name);
   }
 
   function enableScanMode() {
     ensureOverlay();
-    showScanBadge();
-    scanModeActive = true;
     document.addEventListener('mousemove', onScanMouseMove, true);
     document.addEventListener('click', onScanClick, true);
   }
@@ -293,9 +242,7 @@
   function disableScanMode() {
     document.removeEventListener('mousemove', onScanMouseMove, true);
     document.removeEventListener('click', onScanClick, true);
-    scanModeActive = false;
     hideOverlay();
-    hideScanBadge();
   }
 
   // ---------------- Scan All mode ----------------
@@ -651,9 +598,6 @@
       case 'BG_DISABLE_SCAN':
         disableScanMode();
         sendResponse({ ok: true });
-        return;
-      case 'BG_GET_SCAN_STATE':
-        sendResponse({ scanning: scanModeActive });
         return;
       case 'BG_SCAN_ALL':
         sendResponse({ objects: scanAllElements() });

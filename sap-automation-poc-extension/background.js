@@ -11,43 +11,15 @@ const STORAGE_KEYS = {
   TEST_SUITES: 'sap_automation_test_suites',
   REPORTS: 'sap_automation_reports',
   VARIABLES: 'sap_automation_variables',
-  SCANNING: 'sap_automation_scanning',
 };
 
 const ALLOWED_WEBAPP_ORIGIN = 'http://localhost:8787';
 const externalPorts = new Set();
 let cancelRun = false; // flag to cancel running test case / suite
 let runVariables = {}; // runtime variables for extract/reuse during test execution
-let isScanning = false; // track scan mode state (persisted to survive SW termination)
 
-chrome.runtime.onInstalled.addListener(async () => {
-  // Restore persisted scan state (survives service worker termination)
-  const data = await chrome.storage.local.get(STORAGE_KEYS.SCANNING);
-  isScanning = data[STORAGE_KEYS.SCANNING] || false;
-
-  // Chrome: sidePanel opens on action click. Safari: popup opens automatically.
-  if (typeof chrome.sidePanel !== 'undefined') {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
-  }
-});
-
-// Auto-stop scan when user switches tab or navigates to a new URL
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  if (isScanning) {
-    const tabId = activeInfo.tabId;
-    if (tabId) chrome.tabs.sendMessage(tabId, { type: 'BG_DISABLE_SCAN' }).catch(() => {});
-    isScanning = false;
-    setAll(STORAGE_KEYS.SCANNING, false);
-  }
-});
-
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (isScanning && changeInfo.url) {
-    // URL changed (navigation/reload) — stop scan on old page
-    chrome.tabs.sendMessage(tabId, { type: 'BG_DISABLE_SCAN' }).catch(() => {});
-    isScanning = false;
-    setAll(STORAGE_KEYS.SCANNING, false);
-  }
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 });
 
 function uid(prefix) {
@@ -460,11 +432,8 @@ async function runTestCase(tabId, testCase, suiteMeta = null) {
 
     let screenshotDataUrl = null;
     try {
-      if (typeof chrome.tabs.captureVisibleTab === 'function') {
-        const tab = await chrome.tabs.get(tabId);
-        screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 60 });
-      }
-      // Safari: captureVisibleTab not supported — screenshotDataUrl stays null
+      const tab = await chrome.tabs.get(tabId);
+      screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 60 });
     } catch (e) {
       // capture can fail (e.g. devtools open, chrome:// page, tab not visible) - ignore
     }
@@ -635,36 +604,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (tabId && (await ensureContentScriptInjected(tabId))) {
           chrome.tabs.sendMessage(tabId, { type: 'BG_ENABLE_SCAN' }).catch(() => {});
         }
-        isScanning = true;
-        await setAll(STORAGE_KEYS.SCANNING, true);
         sendResponse({ ok: true });
         break;
       }
       case 'SP_STOP_SCAN': {
         const tabId = await getActiveTabId();
         if (tabId) chrome.tabs.sendMessage(tabId, { type: 'BG_DISABLE_SCAN' }).catch(() => {});
-        isScanning = false;
-        await setAll(STORAGE_KEYS.SCANNING, false);
         sendResponse({ ok: true });
-        break;
-      }
-      case 'SP_GET_SCAN_STATE': {
-        // Prefer content script state if available (more accurate after SW restart)
-        const tabId = await getActiveTabId();
-        if (tabId) {
-          try {
-            const result = await chrome.tabs.sendMessage(tabId, { type: 'BG_GET_SCAN_STATE' });
-            if (result && typeof result.scanning === 'boolean') {
-              isScanning = result.scanning;
-              await setAll(STORAGE_KEYS.SCANNING, result.scanning);
-              sendResponse({ scanning: result.scanning });
-              break;
-            }
-          } catch (e) {
-            // Content script not available, fall through to stored state
-          }
-        }
-        sendResponse({ scanning: isScanning });
         break;
       }
       case 'SP_SCAN_ALL': {

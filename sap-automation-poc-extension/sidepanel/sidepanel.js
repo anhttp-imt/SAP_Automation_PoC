@@ -277,10 +277,6 @@
     const data = await send('SP_GET_OBJECTS');
     state.objects = data.objects || [];
     renderObjects();
-
-    // Sync scan state with background (persists across popup open/close)
-    const scanState = await send('SP_GET_SCAN_STATE');
-    if (scanState) setScanning(scanState.scanning);
   }
 
   init();
