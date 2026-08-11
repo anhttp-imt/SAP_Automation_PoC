@@ -1,7 +1,7 @@
 // Database module — MongoDB only.
 require('dotenv').config();
 
-const URI = 'mongodb://localhost:27017';
+const URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const DB_NAME = process.env.DB_NAME || 'sap-automation-poc';
 const REPORT_COLLECTION = 'imt-poc-reports';
 const OBJECTS_COLLECTION = 'imt-poc-objects';
